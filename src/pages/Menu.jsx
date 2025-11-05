@@ -1,9 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Menu = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [menuItems, setMenuItems] = useState([]);
+  const [message, setMessage] = useState('');
 
-  const menuItems = [
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const loadMenuItems = () => {
+    const stored = localStorage.getItem('menuItems');
+    if (stored) {
+      setMenuItems(JSON.parse(stored));
+    } else {
+      // Default menu items if admin hasn't added any
+      const defaultItems = [
     {
       id: 1,
       name: "Phở Bò Tái",
@@ -76,7 +92,38 @@ const Menu = () => {
       category: "drink",
       image: "https://via.placeholder.com/300x200?text=Trà+Đá"
     }
-  ];
+      ];
+      setMenuItems(defaultItems);
+      localStorage.setItem('menuItems', JSON.stringify(defaultItems));
+    }
+  };
+
+  const addToCart = (item) => {
+    if (!user) {
+      setMessage('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1000);
+      return;
+    }
+
+    const cart = JSON.parse(localStorage.getItem(`cart_${user.id}`) || '[]');
+    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+    } else {
+      cart.push({
+        ...item,
+        quantity: 1,
+        image: item.image || 'https://via.placeholder.com/80x80?text=Food'
+      });
+    }
+
+    localStorage.setItem(`cart_${user.id}`, JSON.stringify(cart));
+    setMessage(`Đã thêm ${item.name} vào giỏ hàng!`);
+    setTimeout(() => setMessage(''), 2000);
+  };
 
   const categories = [
     { id: 'all', name: 'Tất Cả' },
@@ -102,6 +149,21 @@ const Menu = () => {
     <div className="section">
       <div className="container">
         <h2>Thực Đơn</h2>
+        
+        {message && (
+          <div style={{
+            background: '#e6fffa',
+            color: '#48bb78',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            border: '1px solid #9ae6b4',
+            textAlign: 'center',
+            fontWeight: '600'
+          }}>
+            {message}
+          </div>
+        )}
         
         {/* Category Filter */}
         <div style={{ 
@@ -141,7 +203,12 @@ const Menu = () => {
                 <p>{item.description}</p>
                 <div className="food-card-footer">
                   <span className="price">{formatPrice(item.price)}</span>
-                  <button className="add-btn">Thêm vào giỏ</button>
+                  <button 
+                    className="add-btn"
+                    onClick={() => addToCart(item)}
+                  >
+                    Thêm vào giỏ
+                  </button>
                 </div>
               </div>
             </div>

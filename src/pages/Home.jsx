@@ -112,9 +112,9 @@ const Home = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               transition: 'all 0.3s ease'
             }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🚚</div>
-              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Giao Hàng Nhanh</h3>
-              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Giao hàng trong 30-45 phút, đảm bảo món ăn còn nóng hổi</p>
+              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🍽️</div>
+              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Phục Vụ Nhanh</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Món ăn được phục vụ nhanh chóng, đảm bảo còn nóng hổi khi đến bàn</p>
             </div>
             <div style={{ 
               textAlign: 'center', 
@@ -125,9 +125,9 @@ const Home = () => {
               border: '1px solid rgba(255, 255, 255, 0.2)',
               transition: 'all 0.3s ease'
             }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>💰</div>
-              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Miễn Phí Ship</h3>
-              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Miễn phí giao hàng cho đơn hàng từ 200.000đ trong bán kính 5km</p>
+              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🏪</div>
+              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Không Gian Đẹp</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Không gian nhà hàng sang trọng, thoáng mát, phù hợp cho mọi dịp</p>
             </div>
           </div>
         </div>
