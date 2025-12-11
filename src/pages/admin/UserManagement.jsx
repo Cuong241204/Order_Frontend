@@ -1,12 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Shield, Trash2 } from 'lucide-react';
+import { User, Mail, Shield, Trash2, Search, Filter, X, Users as UsersIcon } from 'lucide-react';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useEffect(() => {
+    filterUsers();
+  }, [users, searchTerm, roleFilter]);
+
+  const filterUsers = () => {
+    let filtered = [...users];
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(user =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by role
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+
+    setFilteredUsers(filtered);
+  };
+
+  const getUserStats = () => {
+    const stats = {
+      total: users.length,
+      admins: users.filter(u => u.role === 'admin').length,
+      regularUsers: users.filter(u => u.role === 'user').length
+    };
+    return stats;
+  };
+
+  const stats = getUserStats();
 
   const loadUsers = () => {
     // Load from localStorage or create default users
@@ -36,15 +73,157 @@ const UserManagement = () => {
   return (
     <div className="section">
       <div className="container">
-        <h2 style={{ color: '#2d3748', marginBottom: '2rem' }}>Quản Lý Người Dùng</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <h2 style={{ color: '#2d3748', marginBottom: '0.5rem', fontSize: '2rem' }}>Quản Lý Người Dùng</h2>
+            <p style={{ color: '#718096' }}>Tổng cộng: {users.length} người dùng</p>
+          </div>
+        </div>
 
-        {users.length === 0 ? (
+        {/* Stats Cards */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '1rem',
+          marginBottom: '2rem'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #e2e8f0'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <UsersIcon size={20} color="#667eea" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Tổng người dùng</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#667eea', margin: 0 }}>
+              {stats.total}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #fee'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Shield size={20} color="#c33" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Quản trị viên</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#c33', margin: 0 }}>
+              {stats.admins}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #e6fffa'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <User size={20} color="#48bb78" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Người dùng</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#48bb78', margin: 0 }}>
+              {stats.regularUsers}
+            </p>
+          </div>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          alignItems: 'center'
+        }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1', minWidth: '250px' }}>
+            <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#718096' }} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên, email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem 0.75rem 3rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '1rem'
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute',
+                  right: '0.5rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.25rem'
+                }}
+              >
+                <X size={18} color="#718096" />
+              </button>
+            )}
+          </div>
+
+          {/* Role Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Filter size={20} color="#718096" />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={{
+                padding: '0.75rem 1rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">Tất cả vai trò</option>
+              <option value="admin">Quản trị viên</option>
+              <option value="user">Người dùng</option>
+            </select>
+          </div>
+        </div>
+
+        {filteredUsers.length === 0 && users.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '2rem',
+            textAlign: 'center',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)'
+          }}>
+            <p style={{ color: '#718096', fontSize: '1.1rem' }}>
+              Không tìm thấy người dùng nào phù hợp với bộ lọc
+            </p>
+          </div>
+        )}
+
+        {filteredUsers.length === 0 && users.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <p>Chưa có người dùng nào.</p>
           </div>
         ) : (
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <div
                 key={user.id}
                 style={{

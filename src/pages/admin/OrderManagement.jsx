@@ -1,37 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Search, Filter, ArrowUpDown, X, TrendingUp, ShoppingCart } from 'lucide-react';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date'); // date, total, status
+  const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    filterAndSortOrders();
+  }, [orders, searchTerm, statusFilter, sortBy, sortOrder]);
 
   const loadOrders = () => {
     const stored = localStorage.getItem('orders');
     if (stored) {
       setOrders(JSON.parse(stored));
     } else {
-      // Sample orders for demo
-      const sampleOrders = [
-        {
-          id: 1,
-          userId: 2,
-          userName: 'Regular User',
-          items: [
-            { id: 1, name: 'Phở Bò Tái', price: 75000, quantity: 2 },
-            { id: 2, name: 'Bún Bò Huế', price: 70000, quantity: 1 }
-          ],
-          total: 220000,
-          status: 'pending',
-          createdAt: new Date().toISOString()
-        }
-      ];
-      setOrders(sampleOrders);
-      localStorage.setItem('orders', JSON.stringify(sampleOrders));
+      setOrders([]);
     }
   };
+
+  const filterAndSortOrders = () => {
+    let filtered = [...orders];
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(order =>
+        order.id.toString().includes(searchTerm) ||
+        (order.userName && order.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.userEmail && order.userEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.userPhone && order.userPhone.includes(searchTerm))
+      );
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.createdAt) - new Date(b.createdAt);
+          break;
+        case 'total':
+          comparison = a.total - b.total;
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredOrders(filtered);
+  };
+
+  const getOrderStats = () => {
+    const stats = {
+      total: orders.length,
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      completed: orders.filter(o => o.status === 'completed').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      totalRevenue: orders.reduce((sum, o) => sum + (o.total || 0), 0),
+      completedRevenue: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0)
+    };
+    return stats;
+  };
+
+  const stats = getOrderStats();
 
   const updateOrderStatus = (orderId, newStatus) => {
     const updated = orders.map(order =>
@@ -81,15 +129,225 @@ const OrderManagement = () => {
   return (
     <div className="section">
       <div className="container">
-        <h2 style={{ color: '#2d3748', marginBottom: '2rem' }}>Quản Lý Đơn Hàng</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <h2 style={{ color: '#2d3748', marginBottom: '0.5rem', fontSize: '2rem' }}>Quản Lý Đơn Hàng</h2>
+            <p style={{ color: '#718096' }}>Tổng cộng: {orders.length} đơn hàng</p>
+          </div>
+        </div>
 
-        {orders.length === 0 ? (
+        {/* Stats Cards */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+          gap: '1rem',
+          marginBottom: '2rem'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #e2e8f0'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <ShoppingCart size={20} color="#667eea" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Tổng đơn</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#667eea', margin: 0 }}>
+              {stats.total}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #fff4e6'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Clock size={20} color="#ed8936" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Đang chờ</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ed8936', margin: 0 }}>
+              {stats.pending}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #e6fffa'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <CheckCircle size={20} color="#48bb78" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Hoàn thành</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#48bb78', margin: 0 }}>
+              {stats.completed}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #fee'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <XCircle size={20} color="#f56565" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Đã hủy</span>
+            </div>
+            <p style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f56565', margin: 0 }}>
+              {stats.cancelled}
+            </p>
+          </div>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+            border: '2px solid #f0f4ff'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <TrendingUp size={20} color="#667eea" />
+              <span style={{ fontWeight: '600', color: '#2d3748', fontSize: '0.9rem' }}>Doanh thu</span>
+            </div>
+            <p style={{ fontSize: '1.2rem', fontWeight: '800', color: '#667eea', margin: 0 }}>
+              {formatPrice(stats.completedRevenue)}
+            </p>
+          </div>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+          boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          alignItems: 'center'
+        }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: '1', minWidth: '250px' }}>
+            <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#718096' }} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo ID, tên, email, SĐT..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem 0.75rem 3rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '1rem'
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute',
+                  right: '0.5rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.25rem'
+                }}
+              >
+                <X size={18} color="#718096" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Filter size={20} color="#718096" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: '0.75rem 1rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                background: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="pending">Đang chờ</option>
+              <option value="processing">Đang xử lý</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
+            </select>
+          </div>
+
+          {/* Sort */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ArrowUpDown size={20} color="#718096" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                padding: '0.75rem 1rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                background: 'white',
+                cursor: 'pointer',
+                marginRight: '0.5rem'
+              }}
+            >
+              <option value="date">Sắp xếp theo ngày</option>
+              <option value="total">Sắp xếp theo tổng tiền</option>
+              <option value="status">Sắp xếp theo trạng thái</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              style={{
+                padding: '0.75rem 1rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                background: 'white',
+                cursor: 'pointer',
+                fontWeight: '600',
+                color: '#667eea'
+              }}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+
+        {filteredOrders.length === 0 && orders.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '2rem',
+            textAlign: 'center',
+            boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)'
+          }}>
+            <p style={{ color: '#718096', fontSize: '1.1rem' }}>
+              Không tìm thấy đơn hàng nào phù hợp với bộ lọc
+            </p>
+          </div>
+        )}
+
+        {filteredOrders.length === 0 && orders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem' }}>
             <p>Chưa có đơn hàng nào.</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <div
                 key={order.id}
                 style={{

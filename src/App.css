@@ -227,9 +227,9 @@
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: purple;
   border-color: white;
-  color: white;
+  color: red;
 }
 
 /* Section */
@@ -483,6 +483,21 @@
     flex-direction: column;
     gap: 1rem;
     text-align: center;
+  }
+  
+  .cart-item > div:first-child {
+    width: 100px !important;
+    height: 100px !important;
+    margin: 0 auto;
+  }
+  
+  .cart-item-info {
+    text-align: center;
+  }
+  
+  .cart-item-controls {
+    flex-direction: row !important;
+    justify-content: center;
   }
   
   .container {

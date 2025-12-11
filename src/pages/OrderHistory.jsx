@@ -8,14 +8,27 @@ const OrderHistory = () => {
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [user]);
 
   const loadOrders = () => {
     const stored = localStorage.getItem('orders');
     if (stored) {
       const allOrders = JSON.parse(stored);
-      // Filter orders for current user
-      const userOrders = allOrders.filter(order => order.userId === user?.id);
+      // Filter orders for current user or guest orders (by email if not logged in)
+      let userOrders;
+      if (user) {
+        userOrders = allOrders.filter(order => order.userId === user.id);
+      } else {
+        // For guests, show orders matching their email from localStorage (if any)
+        const guestEmail = localStorage.getItem('guest_email');
+        if (guestEmail) {
+          userOrders = allOrders.filter(order => 
+            order.userId === null && order.userEmail === guestEmail
+          );
+        } else {
+          userOrders = [];
+        }
+      }
       setOrders(userOrders);
     }
   };

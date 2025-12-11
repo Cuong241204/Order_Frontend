@@ -9,7 +9,7 @@ const Orders = () => {
       date: '2024-01-15',
       items: [
         { name: 'Phở Bò Tái', quantity: 2, price: 75000 },
-        { name: 'Bún Bò Huế', quantity: 1, price: 70000 }
+        { name: 'Cơm Tấm Sài Gòn', quantity: 1, price: 60000 }
       ],
       total: 220000,
       status: 'completed'

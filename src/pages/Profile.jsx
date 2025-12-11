@@ -8,13 +8,75 @@ const Profile = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [message, setMessage] = useState('');
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    setMessage('');
+
+    // Validate name
+    if (!name.trim()) {
+      setMessage('Vui lòng nhập họ và tên');
+      return;
+    }
+
+    if (name.trim().length < 2) {
+      setMessage('Họ và tên phải có ít nhất 2 ký tự');
+      return;
+    }
+
+    if (name.trim().length > 50) {
+      setMessage('Họ và tên không được vượt quá 50 ký tự');
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      setMessage('Email không hợp lệ');
+      return;
+    }
+
+    // Check if email is already used by another user
+    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    const mockUsers = [
+      { id: 1, email: 'admin@foodorder.com' },
+      { id: 2, email: 'user@foodorder.com' },
+      { id: 3, email: 'test@test.com' }
+    ];
+    
+    const emailExists = [...mockUsers, ...storedUsers].find(
+      u => u.email === email.trim().toLowerCase() && u.id !== user?.id
+    );
+    
+    if (emailExists) {
+      setMessage('Email này đã được sử dụng bởi tài khoản khác');
+      return;
+    }
+
+    try {
     // Update user info
-    const updatedUser = { ...user, name, email };
+      const updatedUser = { 
+        ...user, 
+        name: name.trim(), 
+        email: email.trim().toLowerCase() 
+      };
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    // Also update in users list if exists
+    const updatedUsers = storedUsers.map(u => 
+      u.id === user.id ? updatedUser : u
+    );
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
     setMessage('Cập nhật thông tin thành công!');
     setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage('Đã xảy ra lỗi khi cập nhật. Vui lòng thử lại.');
+      console.error('Error updating profile:', error);
+    }
   };
 
   return (

@@ -1,7 +1,26 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useTable } from '../contexts/TableContext';
 
 const Home = () => {
+  const [searchParams] = useSearchParams();
+  const { setTable, currentTable } = useTable();
+
+  useEffect(() => {
+    // Check URL for table parameter from QR code
+    const tableId = searchParams.get('table');
+    if (tableId) {
+      const tables = JSON.parse(localStorage.getItem('tables') || '[]');
+      const table = tables.find(t => t.id === parseInt(tableId)) || {
+        id: parseInt(tableId),
+        number: `Bàn ${tableId}`,
+        capacity: 4,
+        status: 'available'
+      };
+      setTable(table);
+    }
+  }, [searchParams, setTable]);
+
   const featuredItems = [
     {
       id: 1,
@@ -12,17 +31,10 @@ const Home = () => {
     },
     {
       id: 2,
-      name: "Bún Bò Huế",
-      description: "Bún bò Huế cay nồng với thịt bò và chả cua",
-      price: 70000,
-      image: "https://via.placeholder.com/300x200?text=Bún+Bò+Huế"
-    },
-    {
-      id: 3,
       name: "Cơm Tấm Sài Gòn",
       description: "Cơm tấm với sườn nướng, chả trứng và đồ chua",
       price: 60000,
-      image: "https://via.placeholder.com/300x200?text=Cơm+Tấm"
+      image: "/images/com_tam.jpg"
     },
     {
       id: 4,

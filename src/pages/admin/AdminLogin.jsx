@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { Shield, ArrowLeft } from 'lucide-react';
 
-const Login = () => {
+const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -38,29 +39,36 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        setSuccess(true);
-        // Show success message for 1.5 seconds before redirect
-        setTimeout(() => {
-          // Redirect based on role
-          if (result.user.role === 'admin') {
+        // Kiểm tra xem user có phải admin không
+        if (result.user.role === 'admin') {
+          setSuccess(true);
+          setTimeout(() => {
             navigate('/admin/dashboard');
-          } else {
-            navigate('/home');
-          }
-        }, 1500);
+          }, 1500);
+        } else {
+          setError('Tài khoản này không có quyền quản trị viên');
+          setLoading(false);
+        }
       } else {
         setError(result.error);
+        setLoading(false);
       }
     } catch (err) {
       setError('Đã xảy ra lỗi. Vui lòng thử lại.');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="section" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center' }}>
-      <div className="container" style={{ maxWidth: '500px', margin: '0 auto' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem'
+    }}>
+      <div style={{ maxWidth: '500px', width: '100%' }}>
         <div style={{
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(20px)',
@@ -68,7 +76,49 @@ const Login = () => {
           padding: '3rem',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
         }}>
-          <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: '#2d3748' }}>Đăng Nhập</h2>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)'
+            }}>
+              <Shield size={30} color="white" />
+            </div>
+            <h2 style={{ color: '#2d3748', marginBottom: '0.5rem', fontSize: '1.8rem' }}>
+              Đăng Nhập 
+            </h2>
+            <p style={{ color: '#718096', fontSize: '0.9rem' }}>
+              Vui lòng đăng nhập với tài khoản quản trị viên
+            </p>
+          </div>
+
+          {/* Back Button */}
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'transparent',
+              border: 'none',
+              color: '#667eea',
+              cursor: 'pointer',
+              marginBottom: '1.5rem',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              padding: '0.5rem 0'
+            }}
+          >
+            <ArrowLeft size={16} />
+            Quay lại trang chọn vai trò
+          </button>
           
           {success && (
             <div style={{
@@ -86,7 +136,7 @@ const Login = () => {
               gap: '0.5rem'
             }}>
               <span>✓</span>
-              Đăng nhập thành công! Đang chuyển hướng...
+              Đăng nhập thành công! 
             </div>
           )}
 
@@ -113,6 +163,7 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                placeholder="admin@foodorder.com"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -135,6 +186,7 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                placeholder="Nhập mật khẩu"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -151,26 +203,43 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn"
-              style={{ width: '100%', marginBottom: '1rem' }}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s',
+                marginBottom: '1rem',
+                opacity: loading ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
+              {loading ? 'Đang đăng nhập...' : 'Đăng Nhập Admin'}
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-            <p style={{ color: '#718096' }}>
-              Chưa có tài khoản?{' '}
-              <Link to="/register" style={{ color: '#667eea', fontWeight: '600', textDecoration: 'none' }}>
-                Đăng ký ngay
-              </Link>
-            </p>
-          </div>
-
           <div style={{ marginTop: '2rem', padding: '1rem', background: '#f7fafc', borderRadius: '8px', fontSize: '0.9rem' }}>
-            <p style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Demo Accounts:</p>
-            <p style={{ marginBottom: '0.25rem' }}>Admin: admin@foodorder.com / admin123</p>
-            <p>User: user@foodorder.com / user123</p>
+            <p style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#2d3748' }}>Thông tin đăng nhập:</p>
+            <p style={{ marginBottom: '0.25rem', color: '#4a5568' }}>
+              Email: <strong>admin@foodorder.com</strong>
+            </p>
+            <p style={{ color: '#4a5568' }}>
+              Mật khẩu: <strong>admin123</strong>
+            </p>
           </div>
         </div>
       </div>
@@ -178,4 +247,5 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default AdminLogin;
+

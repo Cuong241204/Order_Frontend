@@ -12,17 +12,40 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+    // Validate name
+    if (!name.trim()) {
+      setError('Vui lòng nhập họ và tên');
       return;
     }
 
+    if (name.trim().length < 2) {
+      setError('Họ và tên phải có ít nhất 2 ký tự');
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      setError('Email không hợp lệ');
+      return;
+    }
+
+    // Validate password
     if (password.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
       return;
     }
 

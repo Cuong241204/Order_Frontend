@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTable } from '../contexts/TableContext';
 import { CreditCard, Phone, User, Mail, Users } from 'lucide-react';
 
 const Checkout = () => {
   const { user } = useAuth();
+  const { currentTable } = useTable();
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,7 +15,7 @@ const Checkout = () => {
     fullName: user?.name || '',
     email: user?.email || '',
     phone: '',
-    tableNumber: '',
+    tableNumber: currentTable?.number || '',
     numberOfGuests: '1',
     paymentMethod: 'cash', // cash = tại nhà hàng
     cardNumber: '',
@@ -23,13 +25,19 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
+    // Update table number when currentTable changes
+    if (currentTable) {
+      setFormData(prev => ({
+        ...prev,
+        tableNumber: currentTable.number
+      }));
     }
+  }, [currentTable]);
 
-    // Load cart from localStorage
-    const storedCart = localStorage.getItem(`cart_${user.id}`);
+  useEffect(() => {
+    // Load cart from localStorage - support both logged in and guest users
+    const cartKey = user ? `cart_${user.id}` : 'cart_guest';
+    const storedCart = localStorage.getItem(cartKey);
     if (storedCart) {
       const items = JSON.parse(storedCart);
       if (items.length === 0) {
@@ -61,14 +69,68 @@ const Checkout = () => {
     }));
   };
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    const phoneRegex = /^[0-9]{10,11}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     // Validate form
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.tableNumber) {
-      setMessage('Vui lòng điền đầy đủ thông tin đặt bàn');
+    if (!formData.fullName || !formData.fullName.trim()) {
+      setMessage('Vui lòng nhập họ và tên');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.fullName.trim().length < 2) {
+      setMessage('Họ và tên phải có ít nhất 2 ký tự');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.fullName.trim().length > 50) {
+      setMessage('Họ và tên không được vượt quá 50 ký tự');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.email || !validateEmail(formData.email)) {
+      setMessage('Email không hợp lệ');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.phone || !validatePhone(formData.phone)) {
+      setMessage('Số điện thoại không hợp lệ (10-11 chữ số)');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.tableNumber || !formData.tableNumber.trim()) {
+      setMessage('Vui lòng nhập số bàn');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.tableNumber.trim().length > 20) {
+      setMessage('Số bàn không được vượt quá 20 ký tự');
+      setLoading(false);
+      return;
+    }
+
+    // Validate number of guests
+    const numGuests = parseInt(formData.numberOfGuests);
+    if (isNaN(numGuests) || numGuests < 1 || numGuests > 20) {
+      setMessage('Số khách phải từ 1 đến 20 người');
       setLoading(false);
       return;
     }
@@ -76,6 +138,45 @@ const Checkout = () => {
     if (formData.paymentMethod === 'card') {
       if (!formData.cardNumber || !formData.cardName || !formData.cardExpiry || !formData.cardCVC) {
         setMessage('Vui lòng điền đầy đủ thông tin thanh toán');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate card number (should be 16 digits)
+      const cardNumberDigits = formData.cardNumber.replace(/\s/g, '');
+      if (cardNumberDigits.length !== 16 || !/^\d+$/.test(cardNumberDigits)) {
+        setMessage('Số thẻ không hợp lệ (phải có 16 chữ số)');
+        setLoading(false);
+        return;
+      }
+
+      // Validate expiry date (MM/YY format)
+      if (!/^\d{2}\/\d{2}$/.test(formData.cardExpiry)) {
+        setMessage('Ngày hết hạn không hợp lệ (định dạng MM/YY)');
+        setLoading(false);
+        return;
+      }
+
+      // Validate CVC (3 digits)
+      if (!/^\d{3}$/.test(formData.cardCVC)) {
+        setMessage('CVC không hợp lệ (phải có 3 chữ số)');
+        setLoading(false);
+        return;
+      }
+
+      // Validate card name
+      if (formData.cardName.trim().length < 2) {
+        setMessage('Tên chủ thẻ phải có ít nhất 2 ký tự');
+        setLoading(false);
+        return;
+      }
+
+      // Validate expiry date is not in the past
+      const [month, year] = formData.cardExpiry.split('/');
+      const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
+      const now = new Date();
+      if (expiryDate < now) {
+        setMessage('Thẻ đã hết hạn');
         setLoading(false);
         return;
       }
@@ -87,7 +188,7 @@ const Checkout = () => {
     // Create order
     const order = {
       id: Date.now(),
-      userId: user.id,
+      userId: user?.id || null, // Allow null for guest orders
       userName: formData.fullName,
       userEmail: formData.email,
       userPhone: formData.phone,
@@ -100,17 +201,22 @@ const Checkout = () => {
       createdAt: new Date().toISOString()
     };
 
-    // Save order
+    // Save order (with pending status - will be updated after payment)
     const orders = JSON.parse(localStorage.getItem('orders') || '[]');
     orders.push(order);
     localStorage.setItem('orders', JSON.stringify(orders));
 
-    // Clear cart
-    localStorage.removeItem(`cart_${user.id}`);
+    // Save guest email for order history lookup (if not logged in)
+    if (!user) {
+      localStorage.setItem('guest_email', formData.email);
+    }
 
-    setMessage('Đặt hàng thành công!');
+    // Save order to localStorage for payment page
+    localStorage.setItem('lastOrder', JSON.stringify(order));
+    
+    setMessage('Đặt hàng thành công! Đang chuyển đến trang thanh toán...');
     setTimeout(() => {
-      navigate('/orders');
+      navigate('/payment', { state: { order } });
     }, 1500);
   };
 
@@ -295,14 +401,22 @@ const Checkout = () => {
                       onChange={handleInputChange}
                       required
                       placeholder="Ví dụ: Bàn 1, Bàn 5"
+                      disabled={!!currentTable}
                       style={{
                         width: '100%',
                         padding: '0.75rem',
                         border: '2px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '1rem'
+                        fontSize: '1rem',
+                        background: currentTable ? '#f7fafc' : 'white',
+                        cursor: currentTable ? 'not-allowed' : 'text'
                       }}
                     />
+                    {currentTable && (
+                      <p style={{ fontSize: '0.85rem', color: '#48bb78', marginTop: '0.25rem' }}>
+                        ✓ Số bàn đã được tự động điền từ QR code
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
