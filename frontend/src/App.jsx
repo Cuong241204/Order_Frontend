@@ -1,7 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { AuthProvider } from './contexts/AuthContext';
 import { TableProvider } from './contexts/TableContext';
+
+// Initialize Stripe - Only if publishable key is provided
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null;
 import Header from './components/Header';
 import Footer from './components/Footer';
 import AdminHeader from './components/AdminHeader';
@@ -14,6 +21,7 @@ import Register from './pages/Register';
 import AdminLogin from './pages/admin/AdminLogin';
 import Profile from './pages/Profile';
 import OrderHistory from './pages/OrderHistory';
+import Orders from './pages/Orders';
 import Checkout from './pages/Checkout';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
@@ -97,7 +105,13 @@ function App() {
               path="/payment" 
               element={
                 <Layout>
-                  <Payment />
+                  {stripePromise ? (
+                    <Elements stripe={stripePromise}>
+                      <Payment />
+                    </Elements>
+                  ) : (
+                    <Payment />
+                  )}
                 </Layout>
                 } 
               />
@@ -117,6 +131,56 @@ function App() {
                 </Layout>
                 } 
               />
+            
+            {/* User Authentication Routes */}
+            <Route 
+              path="/login" 
+              element={
+                <Layout>
+                  <Login />
+                </Layout>
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                <Layout>
+                  <Register />
+                </Layout>
+              } 
+            />
+            
+            {/* Protected User Routes */}
+            <Route 
+              path="/profile" 
+              element={
+                <Layout>
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                </Layout>
+              } 
+            />
+            <Route 
+              path="/order-history" 
+              element={
+                <Layout>
+                  <ProtectedRoute>
+                    <OrderHistory />
+                  </ProtectedRoute>
+                </Layout>
+              } 
+            />
+            <Route 
+              path="/orders" 
+              element={
+                <Layout>
+                  <ProtectedRoute>
+                    <Orders />
+                  </ProtectedRoute>
+                </Layout>
+              } 
+            />
               
             {/* Protected Admin Routes - Admin Layout Only */}
               <Route 

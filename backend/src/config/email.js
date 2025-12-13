@@ -232,3 +232,6 @@ export const sendPaymentConfirmation = async (orderData) => {
 export default transporter;
 
 
+
+
+

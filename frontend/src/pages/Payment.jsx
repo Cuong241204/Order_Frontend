@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, Wallet, CheckCircle, ArrowLeft, Lock } from 'lucide-react';
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { paymentAPI } from '../services/api.js';
 
 const Payment = () => {
+  const stripe = useStripe();
+  const elements = useElements();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('vnpay');
+  const [paymentMethod, setPaymentMethod] = useState('card'); // Stripe as default
   const [orderData, setOrderData] = useState(null);
+  const [clientSecret, setClientSecret] = useState(null);
   const [formData, setFormData] = useState({
-    cardNumber: '',
     cardName: '',
-    cardExpiry: '',
-    cardCVC: '',
     phoneNumber: ''
   });
 
@@ -36,6 +37,23 @@ const Payment = () => {
     }
   }, [location, navigate]);
 
+  // Load Stripe Payment Intent when order data is available
+  useEffect(() => {
+    const loadPaymentIntent = async () => {
+      if (orderData && paymentMethod === 'card') {
+        try {
+          const intent = await paymentAPI.createStripePaymentIntent(orderData.id);
+          if (intent.clientSecret) {
+            setClientSecret(intent.clientSecret);
+          }
+        } catch (error) {
+          console.log('Stripe not configured, will use mock payment');
+        }
+      }
+    };
+    loadPaymentIntent();
+  }, [orderData, paymentMethod]);
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -51,20 +69,20 @@ const Payment = () => {
     }));
   };
 
-  const handleCardNumberChange = (e) => {
-    let value = e.target.value.replace(/\s/g, '');
-    if (value.length <= 16) {
-      value = value.match(/.{1,4}/g)?.join(' ') || value;
-      setFormData(prev => ({ ...prev, cardNumber: value }));
-    }
-  };
-
-  const handleExpiryChange = (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-      value = value.substring(0, 2) + '/' + value.substring(2, 4);
-    }
-    setFormData(prev => ({ ...prev, cardExpiry: value }));
+  // Card element options for Stripe
+  const cardElementOptions = {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#424770',
+        '::placeholder': {
+          color: '#aab7c4',
+        },
+      },
+      invalid: {
+        color: '#9e2146',
+      },
+    },
   };
 
   const handleSubmit = async (e) => {
@@ -80,128 +98,105 @@ const Payment = () => {
 
     // Validate based on payment method
     if (paymentMethod === 'card') {
-      if (!formData.cardNumber || !formData.cardName || !formData.cardExpiry || !formData.cardCVC) {
-        setError('Vui lòng điền đầy đủ thông tin thẻ');
+      if (!stripe || !elements) {
+        setError('Stripe chưa sẵn sàng. Vui lòng thử lại.');
         setLoading(false);
         return;
       }
-      
-      // Validate card number (should be 16 digits)
-      const cardNumberDigits = formData.cardNumber.replace(/\s/g, '');
-      if (cardNumberDigits.length !== 16 || !/^\d+$/.test(cardNumberDigits)) {
-        setError('Số thẻ không hợp lệ (phải có 16 chữ số)');
+
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) {
+        setError('Vui lòng nhập thông tin thẻ');
         setLoading(false);
         return;
       }
 
       // Validate card name
-      if (formData.cardName.trim().length < 2) {
+      if (!formData.cardName || formData.cardName.trim().length < 2) {
         setError('Tên chủ thẻ phải có ít nhất 2 ký tự');
         setLoading(false);
         return;
       }
+    }
 
-      // Validate expiry date (MM/YY format)
-      if (!/^\d{2}\/\d{2}$/.test(formData.cardExpiry)) {
-        setError('Ngày hết hạn không hợp lệ (định dạng MM/YY)');
-        setLoading(false);
-        return;
-      }
-
-      // Validate expiry date is not in the past
-      const [month, year] = formData.cardExpiry.split('/');
-      const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
-      const now = new Date();
-      if (expiryDate < now) {
-        setError('Thẻ đã hết hạn');
-        setLoading(false);
-        return;
-      }
-
-      // Validate CVC (3 digits)
-      if (!/^\d{3}$/.test(formData.cardCVC)) {
-        setError('CVC không hợp lệ (phải có 3 chữ số)');
-        setLoading(false);
-        return;
-      }
-    } else if (paymentMethod === 'vnpay') {
-      // VNPay - redirect to payment gateway
+      // Process payment via API
       try {
-        const response = await paymentAPI.createVNPayUrl(orderData.id);
-        if (response.paymentUrl) {
-          window.location.href = response.paymentUrl;
-          return; // Don't continue, user will be redirected
-        } else {
-          setError('Không thể tạo URL thanh toán VNPay');
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        console.error('VNPay error:', error);
-        setError(error.message || 'Đã xảy ra lỗi khi tạo URL thanh toán');
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Process other payment methods via API
-    try {
-      if (paymentMethod === 'card') {
-        // Try Stripe first, fallback to mock if not configured
-        try {
-          const stripeIntent = await paymentAPI.createStripePaymentIntent(orderData.id);
-          
-          if (stripeIntent.useMock) {
-            // Stripe not configured, use mock payment
-            await paymentAPI.processCardPayment(orderData.id, {
-              cardNumber: formData.cardNumber,
-              cardName: formData.cardName,
-              cardExpiry: formData.cardExpiry,
-              cardCVC: formData.cardCVC
+        if (paymentMethod === 'card') {
+          // Stripe payment
+          if (!stripe || !elements || !clientSecret) {
+            // Fallback to mock payment if Stripe not available
+            console.log('Stripe not available, using mock payment');
+            const result = await paymentAPI.processCardPayment(orderData.id, {
+              cardName: formData.cardName
             });
+            
+            if (result && result.error) {
+              throw new Error(result.error || 'Thanh toán thất bại');
+            }
+            if (result && result.success === false) {
+              throw new Error(result.message || result.error || 'Thanh toán thất bại');
+            }
           } else {
-            // Stripe configured - redirect to Stripe Checkout or use Stripe Elements
-            // For now, we'll use mock but log that Stripe is available
-            console.log('Stripe available but using simplified flow. Payment Intent:', stripeIntent.paymentIntentId);
-            // In production, integrate Stripe Elements here
-            await paymentAPI.processCardPayment(orderData.id, {
-              cardNumber: formData.cardNumber,
-              cardName: formData.cardName,
-              cardExpiry: formData.cardExpiry,
-              cardCVC: formData.cardCVC
+            // Use Stripe Elements to confirm payment
+            const cardElement = elements.getElement(CardElement);
+            
+            const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: {
+                card: cardElement,
+                billing_details: {
+                  name: formData.cardName,
+                },
+              },
             });
+
+            if (stripeError) {
+              throw new Error(stripeError.message || 'Thanh toán thất bại');
+            }
+
+            if (paymentIntent.status === 'succeeded') {
+              // Confirm payment on backend
+              const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
+              
+              if (confirmResult && confirmResult.error) {
+                throw new Error(confirmResult.error || 'Thanh toán thất bại');
+              }
+              if (confirmResult && confirmResult.success === false) {
+                throw new Error(confirmResult.message || confirmResult.error || 'Thanh toán thất bại');
+              }
+            } else {
+              throw new Error('Thanh toán chưa hoàn tất');
+            }
           }
-        } catch (stripeError) {
-          // Fallback to mock if Stripe fails
-          console.warn('Stripe error, using mock payment:', stripeError);
-          await paymentAPI.processCardPayment(orderData.id, {
-            cardNumber: formData.cardNumber,
-            cardName: formData.cardName,
-            cardExpiry: formData.cardExpiry,
-            cardCVC: formData.cardCVC
-          });
+        } else if (paymentMethod === 'cash') {
+          // Cash payment - update order status to pending (will be confirmed later)
+          // Order is already created with 'pending' status
+          // For cash, we can mark it as confirmed immediately or wait for confirmation
+          // For now, we'll just mark it as confirmed
+          try {
+            const { ordersAPI } = await import('../services/api.js');
+            await ordersAPI.updateStatus(orderData.id, 'confirmed');
+          } catch (updateError) {
+            console.warn('Could not update order status for cash payment:', updateError);
+            // Continue anyway
+          }
         }
-      } else if (paymentMethod === 'cash') {
-        // Cash payment - just update order status
-        // Order is already created with 'pending' status
-        // Will be updated when payment is received
+
+        // Clear cart after successful payment
+        const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const cartKey = currentUser ? `cart_${currentUser.id}` : 'cart_guest';
+        localStorage.removeItem(cartKey);
+        localStorage.removeItem('lastOrder');
+
+        setSuccess(true);
+        setLoading(false);
+        setTimeout(() => {
+          navigate('/payment/success', { state: { orderId: orderData.id } });
+        }, 2000);
+      } catch (error) {
+        console.error('Payment error:', error);
+        setError(error.message || 'Đã xảy ra lỗi khi xử lý thanh toán');
+        setLoading(false);
       }
-
-      // Clear cart after successful payment
-      const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
-      const cartKey = currentUser ? `cart_${currentUser.id}` : 'cart_guest';
-      localStorage.removeItem(cartKey);
-      localStorage.removeItem('lastOrder');
-
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/orders', { state: { paymentSuccess: true } });
-      }, 2000);
-    } catch (error) {
-      console.error('Payment error:', error);
-      setError(error.message || 'Đã xảy ra lỗi khi xử lý thanh toán');
-      setLoading(false);
-    }
   };
 
   if (!orderData) {
@@ -402,37 +397,37 @@ const Payment = () => {
             <form onSubmit={handleSubmit}>
               {/* Payment Method Options */}
               <div style={{ marginBottom: '2rem' }}>
-                {/* VNPay - Phương thức thanh toán chính */}
+                {/* Stripe - Phương thức thanh toán chính */}
                 <label
-                  htmlFor="payment-vnpay"
-                  onClick={() => setPaymentMethod('vnpay')}
+                  htmlFor="payment-card"
+                  onClick={() => setPaymentMethod('card')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '1rem',
                     padding: '1.25rem',
-                    border: `2px solid ${paymentMethod === 'vnpay' ? '#667eea' : '#e2e8f0'}`,
+                    border: `2px solid ${paymentMethod === 'card' ? '#667eea' : '#e2e8f0'}`,
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    background: paymentMethod === 'vnpay' ? '#f0f4ff' : 'white',
+                    background: paymentMethod === 'card' ? '#f0f4ff' : 'white',
                     transition: 'all 0.3s',
                     marginBottom: '1rem',
                     position: 'relative'
                   }}
                 >
                   <input
-                    id="payment-vnpay"
+                    id="payment-card"
                     type="radio"
                     name="paymentMethod"
-                    value="vnpay"
-                    checked={paymentMethod === 'vnpay'}
-                    onChange={() => setPaymentMethod('vnpay')}
+                    value="card"
+                    checked={paymentMethod === 'card'}
+                    onChange={() => setPaymentMethod('card')}
                     style={{ margin: 0, width: '20px', height: '20px', cursor: 'pointer' }}
                   />
-                  <CreditCard size={24} color={paymentMethod === 'vnpay' ? '#667eea' : '#718096'} />
+                  <CreditCard size={24} color={paymentMethod === 'card' ? '#667eea' : '#718096'} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: '600', color: '#2d3748', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      VNPay
+                      Stripe (Thẻ tín dụng/Ghi nợ)
                       <span style={{
                         background: '#48bb78',
                         color: 'white',
@@ -443,7 +438,7 @@ const Payment = () => {
                       }}>Khuyến nghị</span>
                     </p>
                     <p style={{ color: '#718096', fontSize: '0.85rem', margin: 0 }}>
-                      Thẻ ATM, Internet Banking, QR Code, Ví điện tử
+                      Visa, Mastercard, JCB, American Express
                     </p>
                   </div>
                 </label>
@@ -485,43 +480,6 @@ const Payment = () => {
                   </div>
                 </label>
 
-                {/* Credit Card */}
-                <label
-                  htmlFor="payment-card"
-                  onClick={() => setPaymentMethod('card')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    padding: '1.25rem',
-                    border: `2px solid ${paymentMethod === 'card' ? '#667eea' : '#e2e8f0'}`,
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    background: paymentMethod === 'card' ? '#f0f4ff' : 'white',
-                    transition: 'all 0.3s',
-                    marginBottom: '1rem'
-                  }}
-                >
-                  <input
-                    id="payment-card"
-                    type="radio"
-                    name="paymentMethod"
-                    value="card"
-                    checked={paymentMethod === 'card'}
-                    onChange={() => setPaymentMethod('card')}
-                    style={{ margin: 0, width: '20px', height: '20px', cursor: 'pointer' }}
-                  />
-                  <CreditCard size={24} color={paymentMethod === 'card' ? '#667eea' : '#718096'} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: '600', color: '#2d3748', margin: 0 }}>
-                      Thẻ tín dụng/Ghi nợ
-                    </p>
-                    <p style={{ color: '#718096', fontSize: '0.85rem', margin: 0 }}>
-                      Visa, Mastercard, JCB
-                    </p>
-                  </div>
-                </label>
-
               </div>
 
               {/* Payment Form based on method */}
@@ -535,27 +493,34 @@ const Payment = () => {
                 }}>
                   <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Thông Tin Thẻ</h4>
                   
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                      Số thẻ *
-                    </label>
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      value={formData.cardNumber}
-                      onChange={handleCardNumberChange}
-                      required
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19}
-                      style={{
-                        width: '100%',
+                  {/* Stripe Card Element */}
+                  {stripe && elements ? (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
+                        Thông tin thẻ *
+                      </label>
+                      <div style={{
                         padding: '0.75rem',
                         border: '2px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '1rem'
-                      }}
-                    />
-                  </div>
+                        background: 'white'
+                      }}>
+                        <CardElement options={cardElementOptions} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '1rem',
+                      background: '#fff3cd',
+                      borderRadius: '8px',
+                      border: '1px solid #ffc107',
+                      marginBottom: '1rem'
+                    }}>
+                      <p style={{ color: '#856404', fontSize: '0.9rem', margin: 0 }}>
+                        ℹ️ Stripe chưa được cấu hình. Hệ thống sẽ sử dụng mock payment (luôn thành công) cho mục đích testing.
+                      </p>
+                    </div>
+                  )}
 
                   <div style={{ marginBottom: '1rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
@@ -578,54 +543,10 @@ const Payment = () => {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                        Ngày hết hạn *
-                      </label>
-                      <input
-                        type="text"
-                        name="cardExpiry"
-                        value={formData.cardExpiry}
-                        onChange={handleExpiryChange}
-                        required
-                        placeholder="MM/YY"
-                        maxLength={5}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '2px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '1rem'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                        CVC *
-                      </label>
-                      <input
-                        type="text"
-                        name="cardCVC"
-                        value={formData.cardCVC}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="123"
-                        maxLength={3}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '2px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '1rem'
-                        }}
-                      />
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {paymentMethod === 'vnpay' && (
+              {paymentMethod === 'card' && (
                 <div style={{
                   padding: '1.5rem',
                   background: '#f7fafc',
@@ -634,10 +555,10 @@ const Payment = () => {
                   border: '1px solid #e2e8f0'
                 }}>
                   <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>
-                    Thanh Toán VNPay
+                    Thanh Toán Bằng Stripe
                   </h4>
                   <p style={{ color: '#718096', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                    Bạn sẽ được chuyển đến trang thanh toán VNPay để hoàn tất giao dịch.
+                    Thanh toán an toàn và bảo mật với Stripe. Hỗ trợ tất cả các loại thẻ tín dụng và ghi nợ.
                   </p>
                   <div style={{
                     padding: '1rem',
@@ -646,7 +567,7 @@ const Payment = () => {
                     border: '1px solid #9ae6b4'
                   }}>
                     <p style={{ color: '#2d3748', fontSize: '0.9rem', margin: 0 }}>
-                      <strong>Hỗ trợ:</strong> Thẻ ATM, Internet Banking, Ví điện tử, QR Code
+                      <strong>Hỗ trợ:</strong> Visa, Mastercard, JCB, American Express
                     </p>
                   </div>
                 </div>

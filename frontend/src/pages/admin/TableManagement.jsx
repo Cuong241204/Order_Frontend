@@ -21,32 +21,32 @@ const TableManagement = () => {
   const loadTables = async () => {
     try {
       const tablesData = await tablesAPI.getAll();
-      // Transform API response to match frontend format
-      const transformedTables = tablesData.map(table => ({
-        id: table.id,
-        name: table.name,
-        number: table.name, // For compatibility
-        capacity: table.capacity,
-        status: table.status,
-        qrCode: table.qrCodeUrl || generateQRCode(table.id),
-        qrCodeUrl: table.qrCodeUrl
-      }));
-      setTables(transformedTables);
-    } catch (error) {
-      console.error('Error loading tables from API, falling back to localStorage:', error);
-      // Fallback to localStorage
-      const stored = localStorage.getItem('tables');
-      if (stored) {
-        setTables(JSON.parse(stored));
+      if (tablesData && Array.isArray(tablesData)) {
+        // Transform API response to match frontend format
+        const transformedTables = tablesData.map(table => ({
+          id: table.id,
+          name: table.name,
+          number: table.name, // For compatibility
+          capacity: table.capacity,
+          status: table.status,
+          qrCode: table.qrCodeUrl || generateQRCode(table.id),
+          qrCodeUrl: table.qrCodeUrl || generateQRCode(table.id)
+        }));
+        setTables(transformedTables);
       } else {
         setTables([]);
       }
+    } catch (error) {
+      console.error('Error loading tables from API:', error);
+      alert('Không thể tải danh sách bàn. Vui lòng kiểm tra kết nối đến server.');
+      setTables([]);
     }
   };
 
   const generateQRCode = (tableId) => {
-    // Generate QR code URL - in production, this would be a proper QR code
-    const baseUrl = window.location.origin;
+    // Generate QR code URL using frontend URL from API or current origin
+    // Backend provides qrCodeUrl, but we can also generate it here
+    const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
     return `${baseUrl}/home?table=${tableId}`;
   };
 
@@ -147,7 +147,8 @@ const TableManagement = () => {
   };
 
   const copyQRUrl = (table) => {
-    navigator.clipboard.writeText(table.qrCode);
+    const urlToCopy = table.qrCodeUrl || table.qrCode || generateQRCode(table.id);
+    navigator.clipboard.writeText(urlToCopy);
     setCopiedTableId(table.id);
     setTimeout(() => setCopiedTableId(null), 2000);
   };
@@ -395,7 +396,7 @@ const TableManagement = () => {
                     </button>
                   </div>
                   <p style={{ color: '#718096', fontSize: '0.75rem', marginTop: '0.5rem', wordBreak: 'break-all' }}>
-                    {table.qrCode}
+                    {table.qrCodeUrl || table.qrCode || generateQRCode(table.id)}
                   </p>
                 </div>
               </div>

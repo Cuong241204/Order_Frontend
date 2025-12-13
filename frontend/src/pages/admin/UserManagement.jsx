@@ -49,34 +49,28 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       const usersData = await usersAPI.getAll();
-      setUsers(usersData);
-      return;
+      if (usersData && Array.isArray(usersData)) {
+        setUsers(usersData);
+        return;
+      }
     } catch (error) {
-      console.error('Error loading users from API, falling back to localStorage:', error);
+      console.error('Error loading users from API:', error);
+      // Don't fallback to localStorage for admin functions - show error instead
+      alert('Không thể tải danh sách người dùng. Vui lòng kiểm tra kết nối đến server.');
+      setUsers([]);
+      return;
     }
     
-    // Fallback to localStorage
-    const stored = localStorage.getItem('users');
-    if (stored) {
-      setUsers(JSON.parse(stored));
-    } else {
-      // Default users
-      const defaultUsers = [
-        { id: 1, name: 'Admin User', email: 'admin@foodorder.com', role: 'admin' },
-        { id: 2, name: 'Regular User', email: 'user@foodorder.com', role: 'user' },
-        { id: 3, name: 'Test User', email: 'test@test.com', role: 'user' }
-      ];
-      setUsers(defaultUsers);
-      localStorage.setItem('users', JSON.stringify(defaultUsers));
-    }
+    // If API returns empty or invalid data
+    setUsers([]);
   };
 
   const deleteUser = async (userId) => {
     if (window.confirm('Bạn có chắc muốn xóa người dùng này?')) {
       try {
         await usersAPI.delete(userId);
-      const updated = users.filter(user => user.id !== userId);
-      setUsers(updated);
+        const updated = users.filter(user => user.id !== userId);
+        setUsers(updated);
       } catch (error) {
         console.error('Error deleting user:', error);
         alert(error.message || 'Đã xảy ra lỗi khi xóa người dùng');

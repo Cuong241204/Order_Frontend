@@ -5,6 +5,34 @@ import { useTable } from '../contexts/TableContext';
 const Home = () => {
   const [searchParams] = useSearchParams();
   const { setTable, currentTable } = useTable();
+  const [tableLoaded, setTableLoaded] = useState(false);
+  
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/300x200?text=No+Image';
+    }
+    // If it's already a full URL (http/https), use it directly
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a base64 image, use it directly
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
+    }
+    // If it's an upload path from backend, add backend URL
+    if (imagePath.startsWith('/uploads/')) {
+      const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      return `${backendUrl}${imagePath}`;
+    }
+    // If it's a local public path (/images/...), use it directly
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    // Fallback
+    return 'https://via.placeholder.com/300x200?text=No+Image';
+  };
+  
   const [featuredItems, setFeaturedItems] = useState([
     {
       id: 1,
@@ -32,15 +60,34 @@ const Home = () => {
   useEffect(() => {
     // Check URL for table parameter from QR code
     const tableId = searchParams.get('table');
-    if (tableId) {
-      const tables = JSON.parse(localStorage.getItem('tables') || '[]');
-      const table = tables.find(t => t.id === parseInt(tableId)) || {
-        id: parseInt(tableId),
-        number: `Bàn ${tableId}`,
-        capacity: 4,
-        status: 'available'
+    if (tableId && !tableLoaded) {
+      setTableLoaded(true);
+      // Load table from API
+      const loadTableFromAPI = async () => {
+        try {
+          const { tablesAPI } = await import('../services/api.js');
+          const table = await tablesAPI.getById(tableId);
+          const tableData = {
+            id: table.id,
+            number: table.name,
+            capacity: table.capacity,
+            status: table.status
+          };
+          setTable(tableData);
+          console.log('Table loaded from QR code:', tableData);
+        } catch (error) {
+          console.error('Error loading table from API:', error);
+          // Fallback to basic table data
+          const tableData = {
+            id: parseInt(tableId),
+            number: `Bàn ${tableId}`,
+            capacity: 4,
+            status: 'available'
+          };
+          setTable(tableData);
+        }
       };
-      setTable(table);
+      loadTableFromAPI();
     }
 
     // Load images from menu items
@@ -83,6 +130,22 @@ const Home = () => {
 
   return (
     <div>
+      {/* Table Info from QR Code */}
+      {currentTable && (
+        <div style={{
+          background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+          color: 'white',
+          padding: '1rem 2rem',
+          textAlign: 'center',
+          marginBottom: '1rem'
+        }}>
+          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>
+            🎯 Bạn đang ở: <strong>{currentTable.number}</strong>
+            {currentTable.capacity && ` (Sức chứa: ${currentTable.capacity} người)`}
+          </p>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
@@ -106,7 +169,13 @@ const Home = () => {
           <div className="grid">
             {featuredItems.map((item) => (
               <div key={item.id} className="food-card">
-                <img src={item.image} alt={item.name} />
+                <img 
+                  src={getImageUrl(item.image)} 
+                  alt={item.name}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                  }}
+                />
                 <div className="food-card-content">
                   <h3>{item.name}</h3>
                   <p>{item.description}</p>

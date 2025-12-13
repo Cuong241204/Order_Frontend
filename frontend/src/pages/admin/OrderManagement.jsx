@@ -48,20 +48,35 @@ const OrderManagement = () => {
     try {
       const ordersData = await ordersAPI.getAll();
       // Transform API response to match frontend format
-      const transformedOrders = ordersData.map(order => ({
-        id: order.id,
-        userId: order.user_id,
-        userName: order.customer_name,
-        userEmail: order.customer_email,
-        userPhone: order.customer_phone,
-        tableNumber: order.table_number,
-        numberOfGuests: order.number_of_guests,
-        items: JSON.parse(order.items),
-        total: order.total_price,
-        status: order.status,
-        paymentMethod: order.payment_method,
-        createdAt: order.created_at
-      }));
+      const transformedOrders = ordersData.map(order => {
+        // Safely parse items - could be string or already an object
+        let items = [];
+        try {
+          if (typeof order.items === 'string') {
+            items = JSON.parse(order.items);
+          } else if (Array.isArray(order.items)) {
+            items = order.items;
+          }
+        } catch (parseError) {
+          console.error('Error parsing items for order', order.id, ':', parseError);
+          items = [];
+        }
+        
+        return {
+          id: order.id,
+          userId: order.user_id,
+          userName: order.customer_name,
+          userEmail: order.customer_email,
+          userPhone: order.customer_phone,
+          tableNumber: order.table_number,
+          numberOfGuests: order.number_of_guests,
+          items: items,
+          total: order.total_price,
+          status: order.status,
+          paymentMethod: order.payment_method,
+          createdAt: order.created_at
+        };
+      });
       setOrders(transformedOrders);
       setLastRefreshTime(new Date());
     } catch (error) {
@@ -141,10 +156,10 @@ const OrderManagement = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       await ordersAPI.updateStatus(orderId, newStatus);
-    const updated = orders.map(order =>
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setOrders(updated);
+      const updated = orders.map(order =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      );
+      setOrders(updated);
     } catch (error) {
       console.error('Error updating order status:', error);
       alert(error.message || 'Đã xảy ra lỗi khi cập nhật trạng thái đơn hàng');

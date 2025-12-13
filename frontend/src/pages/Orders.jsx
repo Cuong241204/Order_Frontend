@@ -2,34 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Home, CheckCircle } from 'lucide-react';
+import { ordersAPI } from '../services/api.js';
 
 const Orders = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [orders] = useState([
-    {
-      id: 1,
-      date: '2024-01-15',
-      items: [
-        { name: 'Phở Bò Tái', quantity: 2, price: 75000 },
-        { name: 'Cơm Tấm Sài Gòn', quantity: 1, price: 60000 }
-      ],
-      total: 220000,
-      status: 'completed'
-    },
-    {
-      id: 2,
-      date: '2024-01-20',
-      items: [
-        { name: 'Cơm Tấm Sài Gòn', quantity: 1, price: 60000 },
-        { name: 'Gỏi Cuốn Tôm Thịt', quantity: 2, price: 45000 }
-      ],
-      total: 150000,
-      status: 'delivered'
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -64,6 +45,10 @@ const Orders = () => {
   };
 
   useEffect(() => {
+    loadOrders();
+  }, [user]);
+
+  useEffect(() => {
     // Kiểm tra nếu có thông báo thành công từ location state
     if (location.state?.paymentSuccess || location.state?.orderSuccess) {
       setShowSuccessMessage(true);
@@ -74,6 +59,55 @@ const Orders = () => {
       return () => clearTimeout(timer);
     }
   }, [location.state]);
+
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      if (user && user.id) {
+        // Load orders for logged in user
+        const userOrders = await ordersAPI.getUserOrders(user.id);
+        // Transform API response
+        const transformedOrders = userOrders.map(order => {
+          let items = [];
+          try {
+            if (typeof order.items === 'string') {
+              items = JSON.parse(order.items);
+            } else if (Array.isArray(order.items)) {
+              items = order.items;
+            }
+          } catch (e) {
+            console.error('Error parsing items:', e);
+            items = [];
+          }
+          
+          return {
+            id: order.id,
+            date: order.created_at,
+            items: items,
+            total: order.total_price,
+            status: order.status
+          };
+        });
+        setOrders(transformedOrders);
+      } else {
+        // For guests, try to get from localStorage
+        const stored = localStorage.getItem('orders');
+        if (stored) {
+          const allOrders = JSON.parse(stored);
+          const guestOrders = allOrders.filter(order => !order.userId || order.userId === null);
+          setOrders(guestOrders);
+        } else {
+          setOrders([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      // Fallback to empty array
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="section">
@@ -170,7 +204,19 @@ const Orders = () => {
           </div>
         )}
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            padding: '3rem',
+            textAlign: 'center'
+          }}>
+            <p style={{ fontSize: '1.2rem', color: '#718096' }}>
+              Đang tải đơn hàng...
+            </p>
+          </div>
+        ) : orders.length === 0 ? (
           <div style={{
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
@@ -208,7 +254,7 @@ const Orders = () => {
                     <h3 style={{ fontSize: '1.3rem', marginBottom: '0.5rem', color: '#2d3748' }}>
                       Đơn hàng #{order.id}
                     </h3>
-                    <p style={{ color: '#718096' }}>Ngày đặt: {order.date}</p>
+                    <p style={{ color: '#718096' }}>Ngày đặt: {new Date(order.date).toLocaleString('vi-VN')}</p>
                   </div>
                   <span style={{
                     padding: '0.5rem 1rem',

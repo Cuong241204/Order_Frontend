@@ -14,6 +14,32 @@ const Menu = () => {
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 6; // Số món ăn mỗi trang
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/300x200?text=No+Image';
+    }
+    // If it's already a full URL (http/https), use it directly
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a base64 image, use it directly
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
+    }
+    // If it's an upload path from backend, add backend URL
+    if (imagePath.startsWith('/uploads/')) {
+      const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      return `${backendUrl}${imagePath}`;
+    }
+    // If it's a local public path (/images/...), use it directly
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    // Fallback
+    return 'https://via.placeholder.com/300x200?text=No+Image';
+  };
+
   useEffect(() => {
     loadMenuItems();
   }, []);
@@ -296,7 +322,13 @@ const Menu = () => {
         <div className="grid">
           {paginatedItems.map((item) => (
             <div key={item.id} className="food-card">
-              <img src={item.image} alt={item.name} />
+              <img 
+                src={getImageUrl(item.image)} 
+                alt={item.name}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                }}
+              />
               <div className="food-card-content">
                 <h3>{item.name}</h3>
                 <p>{item.description}</p>

@@ -77,16 +77,40 @@ const PaymentSuccess = () => {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             marginBottom: '1rem',
-            fontSize: '2.5rem'
+            fontSize: '2.5rem',
+            fontWeight: '800'
           }}>
             Thanh Toán Thành Công!
           </h1>
 
-          <p style={{ color: '#718096', marginBottom: '2rem', fontSize: '1.1rem' }}>
-            Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!
-          </p>
+          {/* Thank You Message - Nổi bật */}
+          <div style={{
+            background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+            color: 'white',
+            padding: '1.5rem 2rem',
+            borderRadius: '16px',
+            marginBottom: '2rem',
+            boxShadow: '0 10px 30px rgba(72, 187, 120, 0.3)'
+          }}>
+            <h2 style={{
+              fontSize: '1.8rem',
+              margin: 0,
+              fontWeight: '700',
+              textAlign: 'center'
+            }}>
+              🙏 Cảm Ơn Quý Khách!
+            </h2>
+            <p style={{
+              margin: '0.5rem 0 0 0',
+              fontSize: '1.1rem',
+              opacity: 0.95,
+              textAlign: 'center'
+            }}>
+              Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ của chúng tôi!
+            </p>
+          </div>
 
-          {/* Order Info */}
+          {/* Order Info - Chỉ hiển thị đơn hàng hiện tại */}
           {orderData && (
             <div style={{
               background: '#f7fafc',
@@ -97,15 +121,11 @@ const PaymentSuccess = () => {
             }}>
               <h3 style={{ color: '#2d3748', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Receipt size={24} />
-                Thông Tin Đơn Hàng
+                Thông Tin Đơn Hàng #{orderData.id}
               </h3>
               
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#718096' }}>Mã đơn hàng:</span>
-                  <span style={{ fontWeight: '600', color: '#2d3748' }}>#{orderData.id}</span>
-                </div>
-                
+              {/* Thông tin cơ bản */}
+              <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
                 {transactionId && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#718096' }}>Mã giao dịch:</span>
@@ -114,14 +134,14 @@ const PaymentSuccess = () => {
                 )}
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#718096' }}>Tổng tiền:</span>
-                  <span style={{ fontWeight: '600', color: '#667eea', fontSize: '1.2rem' }}>
-                    {formatPrice(orderData.total_price)}
+                  <span style={{ color: '#718096' }}>Ngày đặt:</span>
+                  <span style={{ fontWeight: '600', color: '#2d3748' }}>
+                    {new Date(orderData.created_at).toLocaleString('vi-VN')}
                   </span>
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#718096' }}>Phương thức:</span>
+                  <span style={{ color: '#718096' }}>Phương thức thanh toán:</span>
                   <span style={{ fontWeight: '600', color: '#2d3748' }}>
                     {orderData.payment_method === 'vnpay' ? 'VNPay' : 
                      orderData.payment_method === 'card' ? 'Thẻ tín dụng' :
@@ -130,41 +150,140 @@ const PaymentSuccess = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Chi tiết món ăn trong đơn hàng */}
+              {(() => {
+                let items = [];
+                try {
+                  if (typeof orderData.items === 'string') {
+                    items = JSON.parse(orderData.items);
+                  } else if (Array.isArray(orderData.items)) {
+                    items = orderData.items;
+                  }
+                } catch (e) {
+                  console.error('Error parsing items:', e);
+                  items = [];
+                }
+
+                return items.length > 0 ? (
+                  <div style={{
+                    borderTop: '2px solid #e2e8f0',
+                    paddingTop: '1.5rem',
+                    marginTop: '1.5rem'
+                  }}>
+                    <h4 style={{ 
+                      color: '#2d3748', 
+                      marginBottom: '1rem',
+                      fontSize: '1.1rem',
+                      fontWeight: '600'
+                    }}>
+                      Chi Tiết Đơn Hàng:
+                    </h4>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                      {items.map((item, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0.75rem',
+                            background: 'white',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0'
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <span style={{ color: '#2d3748', fontWeight: '600' }}>
+                              {item.name}
+                            </span>
+                            {item.quantity > 1 && (
+                              <span style={{ color: '#718096', marginLeft: '0.5rem' }}>
+                                x {item.quantity}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ 
+                            color: '#2d3748', 
+                            fontWeight: '600',
+                            minWidth: '120px',
+                            textAlign: 'right'
+                          }}>
+                            {formatPrice((item.price || 0) * (item.quantity || 1))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Tổng tiền */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '1.5rem',
+                      paddingTop: '1.5rem',
+                      borderTop: '2px solid #667eea'
+                    }}>
+                      <span style={{ 
+                        fontSize: '1.2rem', 
+                        fontWeight: '700', 
+                        color: '#2d3748' 
+                      }}>
+                        Tổng cộng:
+                      </span>
+                      <span style={{ 
+                        fontSize: '1.5rem',
+                        fontWeight: '800',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text'
+                      }}>
+                        {formatPrice(orderData.total_price)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            {/* Nút Quay Về Trang Chủ - Nổi bật */}
             <button
               onClick={() => navigate('/home')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 2rem',
+                gap: '0.75rem',
+                padding: '1rem 3rem',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: '600',
+                borderRadius: '16px',
+                fontSize: '1.1rem',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                minWidth: '250px',
+                justifyContent: 'center'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.6)';
+                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(102, 126, 234, 0.7)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
               }}
             >
-              <Home size={20} />
-              Về Trang Chủ
+              <Home size={24} />
+              Quay Về Trang Chủ
             </button>
             
+            {/* Nút Xem Đơn Hàng - Phụ */}
             <button
               onClick={() => navigate('/orders')}
               style={{
@@ -183,9 +302,11 @@ const PaymentSuccess = () => {
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = '#f0f4ff';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'white';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <Receipt size={20} />
@@ -212,5 +333,8 @@ const PaymentSuccess = () => {
 };
 
 export default PaymentSuccess;
+
+
+
 
 

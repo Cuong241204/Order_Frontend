@@ -17,7 +17,7 @@ const Checkout = () => {
     phone: '',
     tableNumber: currentTable?.number || '',
     numberOfGuests: '1',
-    paymentMethod: 'vnpay', // vnpay = mặc định
+    paymentMethod: 'card', // Stripe as default
     cardNumber: '',
     cardName: '',
     cardExpiry: '',
@@ -212,7 +212,7 @@ const Checkout = () => {
 
       const order = {
         id: createdOrder.id,
-        userId: createdOrder.user_id,
+        userId: createdOrder.user_id || null,
         userName: createdOrder.customer_name || user?.name || 'Khách hàng',
         userEmail: createdOrder.customer_email || user?.email || null,
         userPhone: createdOrder.customer_phone || formData.phone.trim(),
@@ -224,29 +224,12 @@ const Checkout = () => {
         status: createdOrder.status || 'pending',
         createdAt: createdOrder.created_at || new Date().toISOString()
       };
+      
+      // Save order to localStorage for payment page
+      localStorage.setItem('lastOrder', JSON.stringify(order));
 
       // Process payment based on method
-      if (formData.paymentMethod === 'vnpay') {
-        // VNPay - redirect to payment gateway
-        try {
-          const response = await paymentAPI.createVNPayUrl(order.id);
-          if (response.paymentUrl) {
-            // Save order to localStorage for callback
-            localStorage.setItem('lastOrder', JSON.stringify(order));
-            window.location.href = response.paymentUrl;
-            return; // Don't continue, user will be redirected
-          } else {
-            setMessage('Không thể tạo URL thanh toán VNPay');
-            setLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.error('VNPay error:', error);
-          setMessage(error.message || 'Đã xảy ra lỗi khi tạo URL thanh toán VNPay');
-          setLoading(false);
-          return;
-        }
-      } else if (formData.paymentMethod === 'card') {
+      if (formData.paymentMethod === 'card') {
         // Card payment
         try {
           // Try Stripe first, fallback to mock if not configured
@@ -282,13 +265,13 @@ const Checkout = () => {
           }
           
           setLoading(false);
-          setMessage('Thanh toán thành công! Đang chuyển đến trang đơn hàng...');
+          setMessage('Thanh toán thành công! Đang chuyển đến trang thanh toán thành công...');
           
           // Clear cart after a short delay to allow message to display
           setTimeout(() => {
             const cartKey = user ? `cart_${user.id}` : 'cart_guest';
             localStorage.removeItem(cartKey);
-            navigate('/orders', { state: { paymentSuccess: true } });
+            navigate('/payment/success', { state: { orderId: order.id, paymentMethod: 'card' } });
           }, 1500);
         } catch (error) {
           console.error('Card payment error:', error);
@@ -297,13 +280,8 @@ const Checkout = () => {
           return;
         }
       } else if (formData.paymentMethod === 'cash') {
-        // Cash payment - update order status to completed
-        try {
-          await ordersAPI.updateStatus(order.id, 'completed');
-        } catch (error) {
-          console.error('Error updating order status:', error);
-        }
-        
+        // Cash payment - order stays as 'pending', will be updated when payment is received
+        // No need to update status here, it's already 'pending'
         setLoading(false);
         setMessage('Đặt hàng thành công! Vui lòng thanh toán khi nhận hàng.');
         
@@ -311,7 +289,7 @@ const Checkout = () => {
         setTimeout(() => {
           const cartKey = user ? `cart_${user.id}` : 'cart_guest';
           localStorage.removeItem(cartKey);
-          navigate('/orders', { state: { orderSuccess: true } });
+          navigate('/payment/success', { state: { orderId: order.id, paymentMethod: 'cash' } });
         }, 1500);
       }
     } catch (error) {
@@ -593,31 +571,31 @@ const Checkout = () => {
                   Phương Thức Thanh Toán
                 </h3>
 
-                {/* VNPay */}
+                {/* Stripe (Card) - Phương thức thanh toán chính */}
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
                     padding: '1rem',
-                    border: `2px solid ${formData.paymentMethod === 'vnpay' ? '#667eea' : '#e2e8f0'}`,
+                    border: `2px solid ${formData.paymentMethod === 'card' ? '#667eea' : '#e2e8f0'}`,
                     borderRadius: '8px',
                     cursor: 'pointer',
-                    background: formData.paymentMethod === 'vnpay' ? '#f0f4ff' : 'white',
+                    background: formData.paymentMethod === 'card' ? '#f0f4ff' : 'white',
                     transition: 'all 0.3s',
                     position: 'relative'
                   }}>
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="vnpay"
-                      checked={formData.paymentMethod === 'vnpay'}
+                      value="card"
+                      checked={formData.paymentMethod === 'card'}
                       onChange={handleInputChange}
                       style={{ margin: 0 }}
                     />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        VNPay
+                        Stripe (Thẻ tín dụng/Ghi nợ)
                         <span style={{
                           background: '#48bb78',
                           color: 'white',
@@ -628,7 +606,7 @@ const Checkout = () => {
                         }}>Khuyến nghị</span>
                       </span>
                       <p style={{ color: '#718096', fontSize: '0.85rem', margin: '0.25rem 0 0 0' }}>
-                        Thẻ ATM, Internet Banking, QR Code, Ví điện tử
+                        Visa, Mastercard, JCB, American Express
                       </p>
                     </div>
                   </label>
@@ -659,32 +637,7 @@ const Checkout = () => {
                   </label>
                 </div>
 
-                {/* Credit Card */}
-                <div>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '1rem',
-                    border: `2px solid ${formData.paymentMethod === 'card' ? '#667eea' : '#e2e8f0'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: formData.paymentMethod === 'card' ? '#f0f4ff' : 'white',
-                    transition: 'all 0.3s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={formData.paymentMethod === 'card'}
-                      onChange={handleInputChange}
-                      style={{ margin: 0 }}
-                    />
-                    <span style={{ fontWeight: '600' }}>Thẻ tín dụng/Ghi nợ</span>
-                  </label>
-                </div>
-
-                {formData.paymentMethod === 'vnpay' && (
+                {formData.paymentMethod === 'card' && (
                   <div style={{
                     marginTop: '1rem',
                     padding: '1.5rem',
@@ -693,10 +646,10 @@ const Checkout = () => {
                     border: '1px solid #e2e8f0'
                   }}>
                     <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>
-                      Thanh Toán VNPay
+                      Thanh Toán Bằng Stripe
                     </h4>
                     <p style={{ color: '#718096', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                      Bạn sẽ được chuyển đến trang thanh toán VNPay để hoàn tất giao dịch.
+                      Thanh toán an toàn và bảo mật với Stripe. Bạn sẽ nhập thông tin thẻ ở trang thanh toán tiếp theo.
                     </p>
                     <div style={{
                       padding: '1rem',
@@ -705,7 +658,7 @@ const Checkout = () => {
                       border: '1px solid #9ae6b4'
                     }}>
                       <p style={{ color: '#2d3748', fontSize: '0.9rem', margin: 0 }}>
-                        <strong>Hỗ trợ:</strong> Thẻ ATM, Internet Banking, Ví điện tử, QR Code
+                        <strong>Hỗ trợ:</strong> Visa, Mastercard, JCB, American Express
                       </p>
                     </div>
                   </div>

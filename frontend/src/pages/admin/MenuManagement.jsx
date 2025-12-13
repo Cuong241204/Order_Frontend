@@ -12,8 +12,35 @@ const MenuManagement = () => {
   const [sortBy, setSortBy] = useState('name'); // name, price, category
   const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Số món ăn mỗi trang
+
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/300x200?text=No+Image';
+    }
+    // If it's already a full URL (http/https), use it directly
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a base64 image, use it directly
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
+    }
+    // If it's an upload path from backend, add backend URL
+    if (imagePath.startsWith('/uploads/')) {
+      const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      return `${backendUrl}${imagePath}`;
+    }
+    // If it's a local public path (/images/...), use it directly
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    // Fallback
+    return 'https://via.placeholder.com/300x200?text=No+Image';
+  };
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -32,25 +59,7 @@ const MenuManagement = () => {
   ];
 
   useEffect(() => {
-    // Xóa trực tiếp các món không mong muốn từ localStorage trước khi load
-    const stored = localStorage.getItem('menuItems');
-    if (stored) {
-      try {
-        let items = JSON.parse(stored);
-        const itemsBeforeDelete = items.length;
-        items = items.filter(item => 
-          item.name !== "Bún Bò" && 
-          item.name !== "Bún Bò Huế" &&
-          item.name !== "Chả Cá" &&
-          item.name !== "Chả Cá Lã Vọng"
-        );
-        if (items.length < itemsBeforeDelete) {
-          localStorage.setItem('menuItems', JSON.stringify(items));
-        }
-      } catch (e) {
-        console.error('Error cleaning menu items:', e);
-      }
-    }
+    // Load menu items from API only
     loadMenuItems();
   }, []);
 
@@ -99,262 +108,22 @@ const MenuManagement = () => {
 
   const loadMenuItems = async () => {
     try {
-      // Try to load from API first
+      // Load from API only (no localStorage fallback for admin)
       const items = await menuAPI.getAll();
-      if (items && items.length > 0) {
+      if (items && Array.isArray(items)) {
         setMenuItems(items);
+        setError(''); // Clear any previous errors
         return;
+      } else {
+        setMenuItems([]);
+        setError('Không có dữ liệu món ăn');
       }
     } catch (error) {
-      console.error('Error loading menu from API, falling back to localStorage:', error);
+      console.error('Error loading menu from API:', error);
+      const errorMessage = error.message || 'Không thể tải danh sách món ăn';
+      setError(`Lỗi: ${errorMessage}. Vui lòng kiểm tra kết nối đến server và đảm bảo đã đăng nhập với tài khoản admin.`);
+      setMenuItems([]);
     }
-    
-    // Fallback to localStorage
-    const stored = localStorage.getItem('menuItems');
-    if (stored) {
-      let items = JSON.parse(stored);
-      
-      // Mapping tên món với ảnh local
-      const imageMapping = {
-        "Phở Bò Tái": "/images/pho_bo.jpg",
-        "Cơm Tấm Sài Gòn": "/images/com_tam.jpg",
-        "Bún Mọc": "/images/bunmoc.jpg",
-        "Bún Chả": "/images/buncha.jpg",
-        "Gỏi Cuốn Tôm Thịt": "/images/goi_cuon.jpg",
-        "Cháo Lòng": "/images/chaolong.jpg",
-        "Cá Nướng Muối Ớt": "/images/ca_nuong.jpg",
-        "Sườn Nướng": "/images/suon_nuong.jpg",
-        "Thịt Nướng BBQ": "/images/suon_nuong.jpg",
-        "Bánh Flan": "/images/flan.jpg",
-        "Flan Caramel": "/images/flan.jpg",
-        "Chè Bưởi": "/images/che_buoi.jpg",
-        "Nhãn Trần": "/images/nhan_tran.jpg",
-        "Hoa Quả": "/images/hoa_qua.jpg",
-        "Sữa Đậu Nành": "/images/sua_dau_nanh.jpg",
-        "Cà Phê": "/images/cafe.jpg",
-        "Trà Đá": "/images/tra_da.jpg",
-        "Chè Ba Màu": "/images/che_buoi.jpg"
-      };
-      
-      // Khai báo biến updated
-      let updated = false;
-      
-      // Các món mới cần thêm vào menu
-      const newItemsToAdd = [
-        {
-          id: Date.now() + 0,
-          name: "Cơm Tấm Sài Gòn",
-          description: "Cơm tấm với sườn nướng, chả trứng và đồ chua",
-          price: 60000,
-          category: "main",
-          image: "/images/com_tam.jpg"
-        },
-        {
-          id: Date.now() + 1,
-          name: "Bún Mọc",
-          description: "Bún mọc thơm ngon với thịt viên và nước dùng đậm đà",
-          price: 50000,
-          category: "main",
-          image: "/images/bunmoc.jpg"
-        },
-        {
-          id: Date.now() + 2,
-          name: "Bún Chả",
-          description: "Bún chả Hà Nội với thịt nướng thơm lừng",
-          price: 60000,
-          category: "main",
-          image: "/images/buncha.jpg"
-        },
-        {
-          id: Date.now() + 3,
-          name: "Cháo Lòng",
-          description: "Cháo lòng nóng hổi với lòng heo tươi ngon",
-          price: 40000,
-          category: "main",
-          image: "/images/chaolong.jpg"
-        },
-        {
-          id: Date.now() + 6,
-          name: "Cá Nướng Muối Ớt",
-          description: "Cá nướng muối ớt cay nồng thơm ngon",
-          price: 95000,
-          category: "grilled",
-          image: "/images/ca_nuong.jpg"
-        },
-        {
-          id: Date.now() + 7,
-          name: "Sườn Nướng",
-          description: "Sườn heo nướng thơm lừng với sốt đặc biệt",
-          price: 85000,
-          category: "grilled",
-          image: "/images/suon_nuong.jpg"
-        },
-        {
-          id: Date.now() + 8,
-          name: "Bánh Flan",
-          description: "Bánh flan caramel mềm mịn, ngọt ngào",
-          price: 30000,
-          category: "dessert",
-          image: "/images/flan.jpg"
-        },
-        {
-          id: Date.now() + 9,
-          name: "Chè Bưởi",
-          description: "Chè bưởi mát lạnh, thanh mát",
-          price: 25000,
-          category: "dessert",
-          image: "/images/che_buoi.jpg"
-        },
-        {
-          id: Date.now() + 10,
-          name: "Nhãn Trần",
-          description: "Nhãn trần tươi ngon, ngọt thanh",
-          price: 20000,
-          category: "dessert",
-          image: "/images/nhan_tran.jpg"
-        },
-        {
-          id: Date.now() + 11,
-          name: "Hoa Quả",
-          description: "Đĩa hoa quả tươi ngon, đa dạng",
-          price: 35000,
-          category: "dessert",
-          image: "/images/hoa_qua.jpg"
-        },
-        {
-          id: Date.now() + 12,
-          name: "Sữa Đậu Nành",
-          description: "Sữa đậu nành thơm ngon, bổ dưỡng",
-          price: 12000,
-          category: "drink",
-          image: "/images/sua_dau_nanh.jpg"
-        },
-        {
-          id: Date.now() + 13,
-          name: "Cà Phê",
-          description: "Cà phê đậm đà, thơm ngon",
-          price: 15000,
-          category: "drink",
-          image: "/images/cafe.jpg"
-        },
-        {
-          id: Date.now() + 14,
-          name: "Trà Đá",
-          description: "Trà đá mát lạnh giải nhiệt",
-          price: 10000,
-          category: "drink",
-          image: "/images/tra_da.jpg"
-        }
-      ];
-      
-      // Thay thế "Chè Ba Màu" bằng "Chè Bưởi" nếu có
-      items = items.map(item => {
-        if (item.name === "Chè Ba Màu") {
-          updated = true;
-          return {
-            ...item,
-            name: "Chè Bưởi",
-            image: "/images/che_buoi.jpg",
-            description: "Chè bưởi mát lạnh, thanh mát",
-            price: 25000
-          };
-        }
-        return item;
-      });
-      
-      // Xóa "Bún Bò", "Bún Bò Huế" và "Chả Cá", "Chả Cá Lã Vọng" nếu có
-      const itemsBeforeDelete = items.length;
-      items = items.filter(item => 
-        item.name !== "Bún Bò" && 
-        item.name !== "Bún Bò Huế" &&
-        item.name !== "Chả Cá" &&
-        item.name !== "Chả Cá Lã Vọng"
-      );
-      if (items.length < itemsBeforeDelete) {
-        updated = true;
-      }
-      
-      // Chuyển "Cà Phê Tráng Miệng" thành "Cà Phê" trong đồ uống nếu có
-      items = items.map(item => {
-        if (item.name === "Cà Phê Tráng Miệng") {
-          updated = true;
-          return {
-            ...item,
-            name: "Cà Phê",
-            category: "drink",
-            price: 15000,
-            description: "Cà phê đậm đà, thơm ngon"
-          };
-        }
-        return item;
-      });
-      
-      // Xóa trùng lặp nếu có cả "Cà Phê Tráng Miệng" đã chuyển và "Cà Phê" gốc
-      const cafeItems = items.filter(item => item.name === "Cà Phê");
-      if (cafeItems.length > 1) {
-        // Giữ lại một món "Cà Phê" trong đồ uống
-        const otherItems = items.filter(item => item.name !== "Cà Phê");
-        items = [...otherItems, {
-          id: cafeItems[0].id,
-          name: "Cà Phê",
-          description: "Cà phê đậm đà, thơm ngon",
-          price: 15000,
-          category: "drink",
-          image: "/images/cafe.jpg"
-        }];
-        updated = true;
-      }
-      
-      // Cập nhật ảnh cho các món có trong mapping
-      items = items.map(item => {
-        if (imageMapping[item.name] && (!item.image || item.image.includes('placeholder') || item.image.includes('via.placeholder'))) {
-          updated = true;
-          return { ...item, image: imageMapping[item.name] };
-        }
-        return item;
-      });
-      
-      // Thêm các món mới nếu chưa có
-      const existingNames = items.map(item => item.name);
-      newItemsToAdd.forEach(newItem => {
-        if (!existingNames.includes(newItem.name)) {
-          items.push(newItem);
-          updated = true;
-        }
-      });
-      
-      if (updated) {
-        localStorage.setItem('menuItems', JSON.stringify(items));
-      }
-      
-      setMenuItems(items);
-    } else {
-      // Default menu items
-      const defaultItems = [
-        { id: 1, name: "Phở Bò Tái", description: "Phở bò truyền thống với thịt bò tái tươi ngon", price: 75000, category: "main", image: "/images/pho_bo.jpg" },
-        { id: 1.5, name: "Cơm Tấm Sài Gòn", description: "Cơm tấm với sườn nướng, chả trứng và đồ chua", price: 60000, category: "main", image: "/images/com_tam.jpg" },
-        { id: 2, name: "Bún Mọc", description: "Bún mọc thơm ngon với thịt viên và nước dùng đậm đà", price: 50000, category: "main", image: "/images/bunmoc.jpg" },
-        { id: 3, name: "Bún Chả", description: "Bún chả Hà Nội với thịt nướng thơm lừng", price: 60000, category: "main", image: "/images/buncha.jpg" },
-        { id: 5, name: "Gỏi Cuốn Tôm Thịt", description: "Gỏi cuốn tươi ngon với tôm, thịt, rau sống và bún", price: 45000, category: "appetizer", image: "/images/goi_cuon.jpg" },
-        { id: 6, name: "Cháo Lòng", description: "Cháo lòng nóng hổi với lòng heo tươi ngon", price: 40000, category: "main", image: "/images/chaolong.jpg" },
-        { id: 10, name: "Cá Nướng Muối Ớt", description: "Cá nướng muối ớt cay nồng thơm ngon", price: 95000, category: "grilled", image: "/images/ca_nuong.jpg" },
-        { id: 11, name: "Sườn Nướng", description: "Sườn heo nướng thơm lừng với sốt đặc biệt", price: 85000, category: "grilled", image: "/images/suon_nuong.jpg" },
-        { id: 8, name: "Bánh Flan", description: "Bánh flan caramel mềm mịn, ngọt ngào", price: 30000, category: "dessert", image: "/images/flan.jpg" },
-        { id: 12, name: "Chè Bưởi", description: "Chè bưởi mát lạnh, thanh mát", price: 25000, category: "dessert", image: "/images/che_buoi.jpg" },
-        { id: 13, name: "Nhãn Trần", description: "Nhãn trần tươi ngon, ngọt thanh", price: 20000, category: "dessert", image: "/images/nhan_tran.jpg" },
-        { id: 14, name: "Hoa Quả", description: "Đĩa hoa quả tươi ngon, đa dạng", price: 35000, category: "dessert", image: "/images/hoa_qua.jpg" },
-        { id: 9, name: "Cà Phê", description: "Cà phê đậm đà, thơm ngon", price: 15000, category: "drink", image: "/images/cafe.jpg" },
-        { id: 15, name: "Sữa Đậu Nành", description: "Sữa đậu nành thơm ngon, bổ dưỡng", price: 12000, category: "drink", image: "/images/sua_dau_nanh.jpg" },
-        { id: 16, name: "Trà Đá", description: "Trà đá mát lạnh giải nhiệt", price: 10000, category: "drink", image: "/images/tra_da.jpg" }
-      ];
-      setMenuItems(defaultItems);
-      localStorage.setItem('menuItems', JSON.stringify(defaultItems));
-    }
-  };
-
-  const saveMenuItems = (items) => {
-    localStorage.setItem('menuItems', JSON.stringify(items));
-    setMenuItems(items);
   };
 
   const validatePrice = (price) => {
@@ -456,6 +225,9 @@ const MenuManagement = () => {
 
     const saveItem = async () => {
       try {
+        setError('');
+        setLoading(true);
+        
         // Upload image if it's a file (base64)
         let imageUrl = formData.image;
         if (formData.image && formData.image.startsWith('data:image/')) {
@@ -480,24 +252,30 @@ const MenuManagement = () => {
           image: imageUrl || null
         };
 
-    if (editingItem) {
-      // Update existing item
+        if (editingItem) {
+          // Update existing item
+          console.log('Updating menu item:', editingItem.id, itemData);
           const updated = await menuAPI.update(editingItem.id, itemData);
-          const updatedItems = menuItems.map(item => 
-            item.id === editingItem.id ? updated : item
-      );
-          setMenuItems(updatedItems);
-    } else {
-      // Add new item
+          console.log('Update result:', updated);
+          // Reload menu items to ensure consistency
+          await loadMenuItems();
+        } else {
+          // Add new item
+          console.log('Creating new menu item:', itemData);
           const newItem = await menuAPI.create(itemData);
-          setMenuItems([...menuItems, newItem]);
-    }
+          console.log('Create result:', newItem);
+          // Reload menu items to ensure consistency
+          await loadMenuItems();
+        }
         
         setError('');
-    resetForm();
+        resetForm();
+        setLoading(false);
       } catch (err) {
         console.error('Error saving menu item:', err);
-        setError(err.message || 'Đã xảy ra lỗi khi lưu món ăn. Vui lòng thử lại.');
+        const errorMessage = err.message || err.error || 'Đã xảy ra lỗi khi lưu món ăn. Vui lòng thử lại.';
+        setError(errorMessage);
+        setLoading(false);
       }
     };
 
@@ -525,12 +303,19 @@ const MenuManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Bạn có chắc muốn xóa món ăn này?')) {
       try {
+        setLoading(true);
+        setError('');
+        console.log('Deleting menu item:', id);
         await menuAPI.delete(id);
-        const updated = menuItems.filter(item => item.id !== id);
-        setMenuItems(updated);
+        console.log('Delete successful');
+        // Reload menu items to ensure consistency
+        await loadMenuItems();
+        setLoading(false);
       } catch (error) {
         console.error('Error deleting menu item:', error);
-        setError(error.message || 'Đã xảy ra lỗi khi xóa món ăn');
+        const errorMessage = error.message || error.error || 'Đã xảy ra lỗi khi xóa món ăn';
+        setError(errorMessage);
+        setLoading(false);
       }
     }
   };
@@ -910,7 +695,13 @@ const MenuManagement = () => {
         <div className="grid">
                 {paginatedItems.map((item) => (
             <div key={item.id} className="food-card">
-              <img src={item.image} alt={item.name} />
+              <img 
+                src={getImageUrl(item.image)} 
+                alt={item.name}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                }}
+              />
               <div className="food-card-content">
                 <h3>{item.name}</h3>
                 <p>{item.description}</p>

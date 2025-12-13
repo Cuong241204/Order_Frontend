@@ -17,6 +17,8 @@ const apiCall = async (endpoint, options = {}) => {
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn('No token found for API call to:', endpoint);
   }
 
   try {
@@ -37,16 +39,21 @@ const apiCall = async (endpoint, options = {}) => {
     }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+      const errorMessage = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`;
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
 
     return data;
   } catch (error) {
     console.error('API Error:', error);
     // If it's a network error, provide a more helpful message
-    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
       throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra backend đã chạy chưa.');
     }
+    // Re-throw the error with the message
     throw error;
   }
 };

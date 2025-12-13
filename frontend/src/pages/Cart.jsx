@@ -8,6 +8,32 @@ const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [message, setMessage] = useState('');
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/300x200?text=No+Image';
+    }
+    // If it's already a full URL (http/https), use it directly
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    // If it's a base64 image, use it directly
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
+    }
+    // If it's an upload path from backend, add backend URL
+    if (imagePath.startsWith('/uploads/')) {
+      const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+      return `${backendUrl}${imagePath}`;
+    }
+    // If it's a local public path (/images/...), use it directly
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    // Fallback
+    return 'https://via.placeholder.com/300x200?text=No+Image';
+  };
+
   useEffect(() => {
     // Load cart from localStorage - support both logged in and guest users
     const cartKey = user ? `cart_${user.id}` : 'cart_guest';
@@ -37,6 +63,9 @@ const Cart = () => {
         "Chè Ba Màu": "/images/che_buoi.jpg"
       };
       
+      // Cập nhật ảnh cho các món trong giỏ hàng
+      let updated = false;
+      
       // Thay thế "Chè Ba Màu" bằng "Chè Bưởi" nếu có
       items = items.map(item => {
         if (item.name === "Chè Ba Màu") {
@@ -49,9 +78,6 @@ const Cart = () => {
         }
         return item;
       });
-      
-      // Cập nhật ảnh cho các món trong giỏ hàng
-      let updated = false;
       items = items.map(item => {
         // Nếu món có trong mapping và chưa có ảnh hoặc có placeholder
         if (imageMapping[item.name] && (!item.image || item.image.includes('placeholder') || item.image.includes('via.placeholder'))) {
@@ -200,7 +226,7 @@ const Cart = () => {
                 backgroundColor: '#f8f9fa'
               }}>
               <img 
-                  src={item.image || '/images/pho_bo.jpg'} 
+                  src={getImageUrl(item.image) || '/images/pho_bo.jpg'} 
                 alt={item.name}
                   onError={(e) => {
                     // Fallback nếu ảnh không load được
