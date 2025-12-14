@@ -30,6 +30,10 @@ import RoleSelection from './pages/RoleSelection';
 import Dashboard from './pages/admin/Dashboard';
 
 import MenuManagement from './pages/admin/MenuManagement';
+import OrderManagement from './pages/admin/OrderManagement';
+import UserManagement from './pages/admin/UserManagement';
+import TableManagement from './pages/admin/TableManagement';
+import './App.css';
 
 // Component to check QR code and redirect to home
 const RoleSelectionWithQRCheck = () => {
@@ -47,10 +51,6 @@ const RoleSelectionWithQRCheck = () => {
   // If no table param, show role selection
   return <RoleSelection />;
 };
-import OrderManagement from './pages/admin/OrderManagement';
-import UserManagement from './pages/admin/UserManagement';
-import TableManagement from './pages/admin/TableManagement';
-import './App.css';
 
 // Layout component for user routes with Header and Footer
 const Layout = ({ children }) => (
