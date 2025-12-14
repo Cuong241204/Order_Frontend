@@ -255,15 +255,27 @@ export const confirmStripePayment = async (req, res) => {
 
     // Chỉ update order nếu payment đã succeeded
     if (paymentResult.status === 'succeeded') {
-      console.log('✅ Payment succeeded! Updating order status...');
+      console.log('✅ Payment succeeded! Updating order status to COMPLETED...');
       
       // Cập nhật trạng thái đơn hàng thành completed
-      await db.run(
+      const updateResult = await db.run(
         'UPDATE orders SET status = ?, payment_method = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         ['completed', 'card', orderId]
       );
 
-      console.log('✅ Order status updated to completed');
+      // Verify update
+      const updatedOrder = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
+      if (updatedOrder && updatedOrder.status === 'completed') {
+        console.log('✅ Order status updated to COMPLETED successfully');
+        console.log('   Order ID:', updatedOrder.id);
+        console.log('   Status:', updatedOrder.status);
+        console.log('   Payment Method:', updatedOrder.payment_method);
+      } else {
+        console.error('❌ Order status update failed!');
+        console.error('   Expected: completed');
+        console.error('   Actual:', updatedOrder?.status);
+        throw new Error('Failed to update order status to completed');
+      }
 
       // Gửi email xác nhận (optional, không block nếu fail)
       try {

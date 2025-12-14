@@ -18,8 +18,26 @@ const PaymentSuccess = () => {
     const loadOrder = async () => {
       if (orderId) {
         try {
-          const order = await ordersAPI.getById(orderId);
+          // Load order với retry để đảm bảo có status mới nhất
+          let order = await ordersAPI.getById(orderId);
+          
+          // Nếu status vẫn là pending, đợi 1 giây và load lại (backend có thể đang update)
+          if (order && order.status === 'pending') {
+            console.log('⚠️ Order status still pending, waiting for backend update...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            order = await ordersAPI.getById(orderId);
+          }
+          
           setOrderData(order);
+          
+          // Log để debug
+          if (order) {
+            console.log('✅ Order loaded:', {
+              id: order.id,
+              status: order.status,
+              payment_method: order.payment_method
+            });
+          }
         } catch (error) {
           console.error('Error loading order:', error);
         }

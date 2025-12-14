@@ -315,27 +315,44 @@ const Payment = () => {
           console.log('   Order ID:', orderData.id);
           console.log('   Payment Intent ID:', paymentIntent.id);
           
+          // Update order status on backend - QUAN TRỌNG: Phải đợi update xong
           try {
+            console.log('🔄 Calling backend to confirm payment and update order status...');
             const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
             
             if (confirmResult && confirmResult.error) {
               console.error('❌ Backend error:', confirmResult.error);
-              console.warn('⚠️ Payment succeeded on Stripe but backend update failed');
-              console.warn('   Payment Intent ID:', paymentIntent.id);
-              console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
+              throw new Error(`Backend update failed: ${confirmResult.error}`);
             } else if (confirmResult && confirmResult.success === false) {
-              console.warn('⚠️ Backend update failed:', confirmResult.message);
-              console.warn('   Payment Intent ID:', paymentIntent.id);
-              console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
-            } else {
-              console.log('✅ Order status updated on backend');
+              console.error('❌ Backend update failed:', confirmResult.message);
+              throw new Error(`Backend update failed: ${confirmResult.message}`);
+            } else if (confirmResult && confirmResult.success === true) {
+              console.log('✅ Order status updated to COMPLETED on backend');
               console.log('   Order ID:', confirmResult?.orderId || orderData.id);
+              console.log('   Status: completed');
+            } else {
+              // Nếu không có success flag, vẫn coi như thành công nếu không có error
+              console.log('✅ Backend confirmed payment');
             }
           } catch (backendError) {
-            console.warn('⚠️ Backend update error (payment already succeeded on Stripe):', backendError.message);
-            console.warn('   Payment Intent ID:', paymentIntent.id);
-            console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
-            // Không throw error vì payment đã thành công trên Stripe
+            console.error('❌ Backend update error:', backendError.message);
+            // Retry once
+            try {
+              console.log('🔄 Retrying backend update...');
+              const retryResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
+              if (retryResult && retryResult.success === true) {
+                console.log('✅ Order status updated on retry');
+              } else {
+                throw backendError; // Re-throw nếu retry cũng fail
+              }
+            } catch (retryError) {
+              console.error('❌ Backend update failed after retry:', retryError.message);
+              // Vẫn tiếp tục vì payment đã thành công trên Stripe
+              // Nhưng log error để admin biết
+              console.warn('⚠️ Payment succeeded on Stripe but order status may not be updated');
+              console.warn('   Order ID:', orderData.id);
+              console.warn('   Payment Intent ID:', paymentIntent.id);
+            }
           }
 
           console.log('');
