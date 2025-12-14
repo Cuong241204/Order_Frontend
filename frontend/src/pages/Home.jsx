@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTable } from '../contexts/TableContext';
+import { menuAPI } from '../services/api.js';
 
 const Home = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { setTable, currentTable } = useTable();
   const [tableLoaded, setTableLoaded] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
@@ -33,29 +37,52 @@ const Home = () => {
     return 'https://via.placeholder.com/300x200?text=No+Image';
   };
   
-  const [featuredItems, setFeaturedItems] = useState([
-    {
-      id: 1,
-      name: "Phở Bò Tái",
-      description: "Phở bò truyền thống với thịt bò tái tươi ngon",
-      price: 75000,
-      image: "/images/pho_bo.jpg"
-    },
-    {
-      id: 2,
-      name: "Cơm Tấm Sài Gòn",
-      description: "Cơm tấm với sườn nướng, chả trứng và đồ chua",
-      price: 60000,
-      image: "/images/com_tam.jpg"
-    },
-    {
-      id: 4,
-      name: "Gỏi Cuốn Tôm Thịt",
-      description: "Gỏi cuốn tươi ngon với tôm, thịt, rau sống và bún",
-      price: 45000,
-      image: "/images/goi_cuon.jpg"
-    }
-  ]);
+  // Load menu items from API
+  useEffect(() => {
+    const loadMenuItems = async () => {
+      try {
+        setLoading(true);
+        const items = await menuAPI.getAll();
+        setMenuItems(items || []);
+        // Store in localStorage for quick access
+        if (items) {
+          localStorage.setItem('menuItems', JSON.stringify(items));
+        }
+      } catch (error) {
+        console.error('Error loading menu items:', error);
+        // Fallback to default items if API fails
+        setMenuItems([
+          {
+            id: 1,
+            name: "Phở Bò Tái",
+            description: "Phở bò truyền thống với thịt bò tái tươi ngon",
+            price: 75000,
+            image: "/images/pho_bo.jpg"
+          },
+          {
+            id: 2,
+            name: "Cơm Tấm Sài Gòn",
+            description: "Cơm tấm với sườn nướng, chả trứng và đồ chua",
+            price: 60000,
+            image: "/images/com_tam.jpg"
+          },
+          {
+            id: 4,
+            name: "Gỏi Cuốn Tôm Thịt",
+            description: "Gỏi cuốn tươi ngon với tôm, thịt, rau sống và bún",
+            price: 45000,
+            image: "/images/goi_cuon.jpg"
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadMenuItems();
+  }, []);
+
+  // Get featured items (first 6 items or all if less than 6)
+  const featuredItems = menuItems.slice(0, 6);
 
   useEffect(() => {
     // Check URL for table parameter from QR code
@@ -90,36 +117,39 @@ const Home = () => {
       loadTableFromAPI();
     }
 
-    // Load images from menu items
-    const stored = localStorage.getItem('menuItems');
-    if (stored) {
-      try {
-        const menuItems = JSON.parse(stored);
-        const imageMapping = {
-          "Phở Bò Tái": "/images/pho_bo.jpg",
-          "Cơm Tấm Sài Gòn": "/images/com_tam.jpg",
-          "Gỏi Cuốn Tôm Thịt": "/images/goi_cuon.jpg"
-        };
-
-        setFeaturedItems(prevItems => 
-          prevItems.map(item => {
-            // Tìm món tương ứng trong menu items
-            const menuItem = menuItems.find(mi => mi.name === item.name);
-            if (menuItem && menuItem.image) {
-              return { ...item, image: menuItem.image };
-            }
-            // Nếu không tìm thấy, dùng mapping
-            if (imageMapping[item.name]) {
-              return { ...item, image: imageMapping[item.name] };
-            }
-            return item;
-          })
-        );
-      } catch (e) {
-        console.error('Error loading menu items for featured items:', e);
-      }
-    }
   }, [searchParams, setTable]);
+
+  // Add to cart function
+  const addToCart = (item) => {
+    try {
+      // Support both logged in and guest users
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const cartKey = user ? `cart_${user.id}` : 'cart';
+      
+      const cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      const existingItem = cart.find(cartItem => cartItem.id === item.id);
+      
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({
+          ...item,
+          quantity: 1
+        });
+      }
+      
+      localStorage.setItem(cartKey, JSON.stringify(cart));
+      
+      // Show success message
+      alert(`✅ Đã thêm ${item.name} vào giỏ hàng!`);
+      
+      // Update cart count in header (if exists)
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('❌ Có lỗi xảy ra khi thêm vào giỏ hàng');
+    }
+  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -166,8 +196,17 @@ const Home = () => {
       <section className="section">
         <div className="container">
           <h2>Món Ăn Nổi Bật</h2>
-          <div className="grid">
-            {featuredItems.map((item) => (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <p>Đang tải menu...</p>
+            </div>
+          ) : featuredItems.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <p>Chưa có món ăn nào. Vui lòng quay lại sau!</p>
+            </div>
+          ) : (
+            <div className="grid">
+              {featuredItems.map((item) => (
               <div key={item.id} className="food-card">
                 <img 
                   src={getImageUrl(item.image)} 
@@ -181,15 +220,21 @@ const Home = () => {
                   <p>{item.description}</p>
                   <div className="food-card-footer">
                     <span className="price">{formatPrice(item.price)}</span>
-                    <button className="add-btn">Thêm vào giỏ</button>
+                    <button 
+                      className="add-btn"
+                      onClick={() => addToCart(item)}
+                    >
+                      Thêm vào giỏ
+                    </button>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center' }}>
+              ))}
+            </div>
+          )}
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
             <Link to="/menu" className="btn">
-              Xem Tất Cả Món Ăn
+              Xem Tất Cả Món Ăn ({menuItems.length} món)
             </Link>
           </div>
         </div>
