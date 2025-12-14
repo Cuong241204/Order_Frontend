@@ -18,12 +18,13 @@ const OrderManagement = () => {
   useEffect(() => {
     loadOrders();
     
-    // Auto-refresh mỗi 5 giây để cập nhật đơn hàng mới (chỉ khi không có search/filter active)
+    // Auto-refresh mỗi 3 giây để cập nhật đơn hàng mới (chỉ khi không có search/filter active)
+    // Giảm thời gian để cập nhật status nhanh hơn sau khi thanh toán
     refreshIntervalRef.current = setInterval(() => {
       if (!searchTerm && statusFilter === 'all') {
         loadOrders(true); // true = silent refresh (không hiển thị loading)
       }
-    }, 5000);
+    }, 3000); // Giảm từ 5 giây xuống 3 giây
 
     // Reload khi tab được focus lại
     const handleFocus = () => {
@@ -121,8 +122,8 @@ const OrderManagement = () => {
   const filterAndSortOrders = () => {
     let filtered = [...orders];
 
-    // Ẩn các đơn hàng có status 'pending'
-    filtered = filtered.filter(order => order.status !== 'pending');
+    // KHÔNG ẩn đơn hàng pending nữa - hiển thị tất cả để admin thấy
+    // Chỉ filter theo statusFilter nếu user chọn filter cụ thể
 
     // Backend đã filter theo status và search, nhưng để chắc chắn filter lại ở client
     if (statusFilter !== 'all') {

@@ -316,6 +316,7 @@ const Payment = () => {
           console.log('   Payment Intent ID:', paymentIntent.id);
           
           // Update order status on backend - QUAN TRỌNG: Phải đợi update xong
+          let orderStatusUpdated = false;
           try {
             console.log('🔄 Calling backend to confirm payment and update order status...');
             const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
@@ -330,29 +331,64 @@ const Payment = () => {
               console.log('✅ Order status updated to COMPLETED on backend');
               console.log('   Order ID:', confirmResult?.orderId || orderData.id);
               console.log('   Status: completed');
+              orderStatusUpdated = true;
             } else {
-              // Nếu không có success flag, vẫn coi như thành công nếu không có error
-              console.log('✅ Backend confirmed payment');
+              // Nếu không có success flag, kiểm tra lại order status
+              console.log('⚠️ No success flag, verifying order status...');
+              const { ordersAPI } = await import('../services/api.js');
+              const verifyOrder = await ordersAPI.getById(orderData.id);
+              if (verifyOrder && verifyOrder.status === 'completed') {
+                console.log('✅ Order status verified as COMPLETED');
+                orderStatusUpdated = true;
+              } else {
+                console.warn('⚠️ Order status not updated, will retry...');
+                throw new Error('Order status not updated');
+              }
             }
           } catch (backendError) {
             console.error('❌ Backend update error:', backendError.message);
-            // Retry once
+            // Retry với delay
             try {
-              console.log('🔄 Retrying backend update...');
+              console.log('🔄 Retrying backend update after 1 second...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
               const retryResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
               if (retryResult && retryResult.success === true) {
                 console.log('✅ Order status updated on retry');
+                orderStatusUpdated = true;
               } else {
-                throw backendError; // Re-throw nếu retry cũng fail
+                // Verify lại sau retry
+                const { ordersAPI } = await import('../services/api.js');
+                const verifyOrder = await ordersAPI.getById(orderData.id);
+                if (verifyOrder && verifyOrder.status === 'completed') {
+                  console.log('✅ Order status verified as COMPLETED after retry');
+                  orderStatusUpdated = true;
+                } else {
+                  throw backendError;
+                }
               }
             } catch (retryError) {
               console.error('❌ Backend update failed after retry:', retryError.message);
-              // Vẫn tiếp tục vì payment đã thành công trên Stripe
-              // Nhưng log error để admin biết
-              console.warn('⚠️ Payment succeeded on Stripe but order status may not be updated');
-              console.warn('   Order ID:', orderData.id);
-              console.warn('   Payment Intent ID:', paymentIntent.id);
+              // Final retry với delay dài hơn
+              try {
+                console.log('🔄 Final retry after 2 seconds...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const finalResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
+                if (finalResult && finalResult.success === true) {
+                  orderStatusUpdated = true;
+                }
+              } catch (finalError) {
+                console.error('❌ All retries failed:', finalError.message);
+                console.warn('⚠️ Payment succeeded on Stripe but order status update may have failed');
+                console.warn('   Order ID:', orderData.id);
+                console.warn('   Payment Intent ID:', paymentIntent.id);
+                console.warn('   Admin should manually check and update order status if needed');
+              }
             }
+          }
+          
+          if (!orderStatusUpdated) {
+            console.warn('⚠️ WARNING: Order status may not be updated to completed');
+            console.warn('   Please check order status in admin dashboard');
           }
 
           console.log('');
