@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, LogOut, Settings, Shield, Table, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Settings, Shield, Table } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTable } from '../contexts/TableContext';
 
@@ -9,9 +9,8 @@ const Header = () => {
   const navigate = useNavigate();
   const { user, logout, isAdmin } = useAuth();
   const { currentTable } = useTable();
-  const [cartCount, setCartCount] = useState(0);
+  const [cartCount] = useState(0); // Sẽ được kết nối với context sau
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -21,139 +20,56 @@ const Header = () => {
     setShowUserMenu(false);
   };
 
-  // Update cart count from localStorage
-  useEffect(() => {
-    const updateCartCount = () => {
-      const cartKey = user ? `cart_${user.id}` : 'cart_guest';
-      const cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-      setCartCount(count);
-    };
-
-    updateCartCount();
-    window.addEventListener('cartUpdated', updateCartCount);
-    return () => window.removeEventListener('cartUpdated', updateCartCount);
-  }, [user]);
-
   return (
     <header className="header">
       <div className="container">
         <div className="header-content">
-          <div className="header-left">
-            <Link to="/home" className="logo">
-              🍜 FoodOrder
-            </Link>
-            
-            {currentTable && (
-              <div className="table-badge">
-                <Table size={16} />
-                <span>{currentTable.number}</span>
-              </div>
-            )}
-          </div>
+          <Link to="/home" className="logo">
+            🍜 FoodOrder
+          </Link>
           
-          {/* Desktop Navigation */}
-          <nav className="nav desktop-nav">
-            <Link to="/home" className={isActive('/home') ? 'active' : ''} onClick={() => setShowMobileMenu(false)}>
+          <nav className="nav">
+            <Link to="/home" className={isActive('/home') ? 'active' : ''}>
               Trang Chủ
             </Link>
-            <Link to="/menu" className={isActive('/menu') ? 'active' : ''} onClick={() => setShowMobileMenu(false)}>
+            <Link to="/menu" className={isActive('/menu') ? 'active' : ''}>
               Thực Đơn
             </Link>
-            <Link to="/cart" className={isActive('/cart') ? 'active' : ''} onClick={() => setShowMobileMenu(false)}>
-              Giỏ Hàng
-            </Link>
-            <Link to="/checkout" className={isActive('/checkout') ? 'active' : ''} onClick={() => setShowMobileMenu(false)}>
+                <Link to="/cart" className={isActive('/cart') ? 'active' : ''}>
+                  Giỏ Hàng
+                </Link>
+            <Link to="/checkout" className={isActive('/checkout') ? 'active' : ''}>
               Thanh Toán
-            </Link>
+              </Link>
           </nav>
           
-          <div className="header-right">
-            <Link to="/cart" className="cart-btn">
-              <ShoppingCart size={20} />
-              {cartCount > 0 && (
-                <span className="cart-count">{cartCount}</span>
-              )}
-            </Link>
-            
-            {/* Mobile Menu Toggle */}
-            <button 
-              className="mobile-menu-toggle"
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              aria-label="Toggle menu"
-            >
-              {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
-            </button>
+          {currentTable && (
+            <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'rgba(102, 126, 234, 0.1)',
+              borderRadius: '20px',
+              color: '#667eea',
+                    fontWeight: '600',
+              fontSize: '0.9rem'
+                  }}>
+              <Table size={18} />
+              {currentTable.number}
+                  </div>
+                )}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Link to="/cart" className="cart-btn">
+                <ShoppingCart size={20} />
+                {cartCount > 0 && (
+                  <span className="cart-count">{cartCount}</span>
+                )}
+              </Link>
           </div>
         </div>
       </div>
-      
-      {/* Mobile Navigation */}
-      <nav className={`mobile-nav ${showMobileMenu ? 'active' : ''}`}>
-        <Link 
-          to="/home" 
-          className={isActive('/home') ? 'active' : ''} 
-          onClick={() => setShowMobileMenu(false)}
-        >
-          Trang Chủ
-        </Link>
-        <Link 
-          to="/menu" 
-          className={isActive('/menu') ? 'active' : ''} 
-          onClick={() => setShowMobileMenu(false)}
-        >
-          Thực Đơn
-        </Link>
-        <Link 
-          to="/cart" 
-          className={isActive('/cart') ? 'active' : ''} 
-          onClick={() => setShowMobileMenu(false)}
-        >
-          Giỏ Hàng {cartCount > 0 && `(${cartCount})`}
-        </Link>
-        <Link 
-          to="/checkout" 
-          className={isActive('/checkout') ? 'active' : ''} 
-          onClick={() => setShowMobileMenu(false)}
-        >
-          Thanh Toán
-        </Link>
-        {user && (
-          <>
-            <Link 
-              to="/profile" 
-              className={isActive('/profile') ? 'active' : ''} 
-              onClick={() => setShowMobileMenu(false)}
-            >
-              <User size={18} /> Tài Khoản
-            </Link>
-            <Link 
-              to="/order-history" 
-              className={isActive('/order-history') ? 'active' : ''} 
-              onClick={() => setShowMobileMenu(false)}
-            >
-              Lịch Sử Đơn Hàng
-            </Link>
-          </>
-        )}
-        {isAdmin && (
-          <Link 
-            to="/admin/dashboard" 
-            className={isActive('/admin/dashboard') ? 'active' : ''} 
-            onClick={() => setShowMobileMenu(false)}
-          >
-            <Shield size={18} /> Quản Trị
-          </Link>
-        )}
-      </nav>
-      
-      {/* Mobile Menu Overlay */}
-      {showMobileMenu && (
-        <div
-          className="mobile-menu-overlay"
-          onClick={() => setShowMobileMenu(false)}
-        />
-      )}
       
       {showUserMenu && (
         <div
