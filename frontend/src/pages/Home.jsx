@@ -190,7 +190,6 @@ const Home = () => {
       <section className="section">
         <div className="container">
           <h2>Món Ăn Nổi Bật</h2>
-          <p className="section-subtitle">Khám phá những món ăn được yêu thích nhất của chúng tôi</p>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>
               <p>Đang tải menu...</p>
@@ -236,24 +235,48 @@ const Home = () => {
       </section>
 
       {/* Features */}
-      <section className="section features-section">
+      <section className="section">
         <div className="container">
           <h2>Tại Sao Chọn Chúng Tôi?</h2>
           <div className="grid features-grid">
-            <div className="feature-card">
-              <span className="icon">⭐</span>
-              <h3>Chất Lượng Cao</h3>
-              <p>Nguyên liệu tươi ngon, chế biến cẩn thận theo công thức truyền thống</p>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⭐</div>
+              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Chất Lượng Cao</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Nguyên liệu tươi ngon, chế biến cẩn thận theo công thức truyền thống</p>
             </div>
-            <div className="feature-card">
-              <span className="icon">🍽️</span>
-              <h3>Phục Vụ Nhanh</h3>
-              <p>Món ăn được phục vụ nhanh chóng, đảm bảo còn nóng hổi khi đến bàn</p>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🍽️</div>
+              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Phục Vụ Nhanh</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Món ăn được phục vụ nhanh chóng, đảm bảo còn nóng hổi khi đến bàn</p>
             </div>
-            <div className="feature-card">
-              <span className="icon">🏪</span>
-              <h3>Không Gian Đẹp</h3>
-              <p>Không gian nhà hàng sang trọng, thoáng mát, phù hợp cho mọi dịp</p>
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🏪</div>
+              <h3 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '1rem', fontWeight: '700' }}>Không Gian Đẹp</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.9)', lineHeight: '1.6' }}>Không gian nhà hàng sang trọng, thoáng mát, phù hợp cho mọi dịp</p>
             </div>
           </div>
         </div>
