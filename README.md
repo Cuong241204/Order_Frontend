@@ -3,8 +3,13 @@
 Hệ thống quản lý đặt món cho nhà hàng với giao diện người dùng và quản trị viên, hỗ trợ thanh toán qua Stripe và VNPay.
 
 > 📖 **Hướng dẫn Deploy miễn phí**: 
+> - 🚀 **[Hướng dẫn chi tiết từng bước](./DEPLOY_STEP_BY_STEP_DETAILED.md)** ⭐ **KHUYẾN NGHỊ**
 > - ⚡ [Deploy nhanh trên Render](./DEPLOY_QUICK.md) (5 bước)
 > - 📚 [Hướng dẫn chi tiết](./DEPLOY.md) (Render, Vercel, Railway)
+> - 📦 [Deploy Monorepo](./MONOREPO_DEPLOY.md) (Backend + Frontend cùng repo)
+> - 🔐 [Cách điền Environment Variables](./ENV_VARIABLES_GUIDE.md) (Chi tiết từng biến)
+> - ⚡ [Tham khảo nhanh Env Variables](./ENV_QUICK_REFERENCE.md) (Bảng tóm tắt)
+> - ✅ [Checklist deploy đầy đủ](./FINAL_DEPLOY_CHECKLIST.md) (Đảm bảo 100% hoạt động)
 
 ## ✨ Tính Năng
 

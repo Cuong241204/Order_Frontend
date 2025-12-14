@@ -44,8 +44,8 @@ const TableManagement = () => {
   };
 
   const generateQRCode = (tableId) => {
-    // Generate QR code URL using frontend URL from API or current origin
-    // Backend provides qrCodeUrl, but we can also generate it here
+    // Prefer qrCodeUrl from backend API (most reliable)
+    // Fallback to current origin if not available
     const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
     return `${baseUrl}/home?table=${tableId}`;
   };
