@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { AuthProvider } from './contexts/AuthContext';
@@ -28,7 +28,25 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFailed from './pages/PaymentFailed';
 import RoleSelection from './pages/RoleSelection';
 import Dashboard from './pages/admin/Dashboard';
+
 import MenuManagement from './pages/admin/MenuManagement';
+
+// Component to check QR code and redirect to home
+const RoleSelectionWithQRCheck = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const tableId = searchParams.get('table');
+  
+  useEffect(() => {
+    // If table param exists, redirect directly to home (skip role selection)
+    if (tableId) {
+      navigate(`/home?table=${tableId}`, { replace: true });
+    }
+  }, [tableId, navigate]);
+  
+  // If no table param, show role selection
+  return <RoleSelection />;
+};
 import OrderManagement from './pages/admin/OrderManagement';
 import UserManagement from './pages/admin/UserManagement';
 import TableManagement from './pages/admin/TableManagement';
@@ -62,8 +80,8 @@ function App() {
       <Router>
         <div className="app">
             <Routes>
-            {/* Role Selection - No Header/Footer */}
-            <Route path="/" element={<RoleSelection />} />
+            {/* Role Selection - No Header/Footer - Redirect to home if table param exists */}
+            <Route path="/" element={<RoleSelectionWithQRCheck />} />
             
             {/* Admin Login - No Header/Footer */}
             <Route path="/admin/login" element={<AdminLogin />} />

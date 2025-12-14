@@ -122,8 +122,8 @@ export const createOrder = async (req, res) => {
         numberOfGuests || null,
         itemsJson,
         totalPrice,
-        paymentMethod || null,
-        'pending'
+        paymentMethod || 'cash', // Default payment method
+        'completed' // Default status - completed (no pending status)
       ]
     );
 

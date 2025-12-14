@@ -89,7 +89,7 @@ export const initDatabase = async () => {
         number_of_guests INTEGER,
         items TEXT NOT NULL,
         total_price REAL NOT NULL,
-        status TEXT DEFAULT 'pending',
+        status TEXT DEFAULT 'completed',
         payment_method TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -21,9 +21,10 @@ export const createVNPayUrl = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    if (order.status !== 'pending') {
-      return res.status(400).json({ error: 'Order is not pending' });
-    }
+    // Orders are now created as completed by default, so we don't check status
+    // if (order.status !== 'pending') {
+    //   return res.status(400).json({ error: 'Order is not pending' });
+    // }
 
     // Lấy IP thực từ request
     const ipAddr = req.headers['x-forwarded-for']?.split(',')[0] || 
@@ -151,13 +152,14 @@ export const createStripePaymentIntent = async (req, res) => {
       customer_name: order.customer_name
     });
 
-    if (order.status !== 'pending') {
-      console.warn('⚠️ Order status is not pending:', order.status);
-      return res.status(400).json({ 
-        error: 'Order is not pending',
-        currentStatus: order.status
-      });
-    }
+    // Orders are now created as completed by default, so we don't check status
+    // if (order.status !== 'pending') {
+    //   console.warn('⚠️ Order status is not pending:', order.status);
+    //   return res.status(400).json({ 
+    //     error: 'Order is not pending',
+    //     currentStatus: order.status
+    //   });
+    // }
 
     // Kiểm tra total_price
     if (!order.total_price || order.total_price <= 0) {
@@ -335,9 +337,10 @@ export const processCardPayment = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    if (order.status !== 'pending') {
-      return res.status(400).json({ error: 'Order is not pending' });
-    }
+    // Orders are now created as completed by default
+    // if (order.status !== 'pending') {
+    //   return res.status(400).json({ error: 'Order is not pending' });
+    // }
 
     // Mock payment - chỉ dùng khi Stripe chưa được cấu hình
     // Validate card data

@@ -6,6 +6,10 @@ import { menuAPI } from '../services/api.js';
 const Home = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+const Home = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { setTable, currentTable } = useTable();
   const [tableLoaded, setTableLoaded] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
