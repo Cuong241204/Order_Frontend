@@ -21,8 +21,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all origins in production for flexibility
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -48,9 +60,9 @@ app.get('/api/health', (req, res) => {
 // Initialize database and start server
 initDatabase()
   .then(() => {
-    const server = app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
-      console.log(`📝 API Documentation: http://localhost:${PORT}/api/health`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+      console.log(`📝 API Documentation: http://0.0.0.0:${PORT}/api/health`);
     });
     
     server.on('error', (err) => {

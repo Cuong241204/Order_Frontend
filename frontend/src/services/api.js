@@ -43,6 +43,17 @@ const apiCall = async (endpoint, options = {}) => {
       const error = new Error(errorMessage);
       error.status = response.status;
       error.data = data;
+      error.details = data.details;
+      error.stripeErrorType = data.stripeErrorType;
+      error.stripeErrorCode = data.stripeErrorCode;
+      console.error('API Error Response:', {
+        status: response.status,
+        error: errorMessage,
+        details: data.details,
+        stripeErrorType: data.stripeErrorType,
+        stripeErrorCode: data.stripeErrorCode,
+        fullData: data
+      });
       throw error;
     }
 

@@ -107,50 +107,117 @@ export const createStripePaymentIntent = async (req, res) => {
   try {
     const { orderId } = req.body;
 
+    console.log('🔄 createStripePaymentIntent called');
+    console.log('   Request body:', req.body);
+    console.log('   Order ID:', orderId);
+
     if (!orderId) {
+      console.error('❌ Order ID is missing');
       return res.status(400).json({ error: 'Order ID is required' });
-    }
-
-    const order = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
-    
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.status !== 'pending') {
-      return res.status(400).json({ error: 'Order is not pending' });
     }
 
     // Kiểm tra Stripe đã được cấu hình chưa
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === '') {
-      // Fallback to mock payment if Stripe not configured
+      console.warn('⚠️ STRIPE_SECRET_KEY not configured, returning mock payment');
       return res.json({
         useMock: true,
         message: 'Stripe chưa được cấu hình, sử dụng mock payment'
       });
     }
 
-    // Tạo Payment Intent với Stripe
-    const paymentIntent = await createPaymentIntent({
-      orderId: order.id,
-      amount: order.total_price,
-      customerEmail: order.customer_email,
-      customerName: order.customer_name,
-      description: `Thanh toan don hang #${order.id}`
+    console.log('✅ Stripe secret key exists');
+
+    // Lấy thông tin đơn hàng
+    let order;
+    try {
+      order = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    } catch (dbError) {
+      console.error('❌ Database error:', dbError);
+      return res.status(500).json({ 
+        error: 'Lỗi khi truy vấn database',
+        details: dbError.message 
+      });
+    }
+    
+    if (!order) {
+      console.error('❌ Order not found:', orderId);
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    console.log('✅ Order found:', {
+      id: order.id,
+      status: order.status,
+      total_price: order.total_price,
+      customer_name: order.customer_name
     });
 
+    if (order.status !== 'pending') {
+      console.warn('⚠️ Order status is not pending:', order.status);
+      return res.status(400).json({ 
+        error: 'Order is not pending',
+        currentStatus: order.status
+      });
+    }
+
+    // Kiểm tra total_price
+    if (!order.total_price || order.total_price <= 0) {
+      console.error('❌ Invalid total_price:', order.total_price);
+      return res.status(400).json({ 
+        error: 'Order total price is invalid',
+        total_price: order.total_price
+      });
+    }
+
+    console.log('✅ Creating Stripe Payment Intent for order:', order.id);
+    console.log('   Amount:', order.total_price, 'VND');
+    console.log('   Customer:', order.customer_name || 'Guest');
+    
+    // Tạo Payment Intent với Stripe
+    let paymentIntent;
+    try {
+      paymentIntent = await createPaymentIntent({
+        orderId: order.id,
+        amount: order.total_price,
+        customerEmail: order.customer_email,
+        customerName: order.customer_name,
+        description: `Thanh toan don hang #${order.id}`
+      });
+    } catch (stripeError) {
+      console.error('❌ Stripe API error:', stripeError);
+      console.error('   Error message:', stripeError.message);
+      console.error('   Error type:', stripeError.type);
+      console.error('   Error code:', stripeError.code);
+      return res.status(500).json({ 
+        error: 'Lỗi khi tạo payment intent với Stripe',
+        details: stripeError.message,
+        stripeErrorType: stripeError.type,
+        stripeErrorCode: stripeError.code
+      });
+    }
+
+    console.log('✅ Stripe Payment Intent created successfully!');
+    console.log('   Payment Intent ID:', paymentIntent.paymentIntentId);
+    console.log('   Client Secret:', paymentIntent.clientSecret.substring(0, 20) + '...');
+    console.log('🔗 Xem trên Dashboard: https://dashboard.stripe.com/test/payments');
+    console.log('   Tìm Payment Intent ID:', paymentIntent.paymentIntentId);
+    
     res.json({
       clientSecret: paymentIntent.clientSecret,
       paymentIntentId: paymentIntent.paymentIntentId
     });
   } catch (error) {
-    console.error('Create Stripe payment intent error:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi tạo payment intent' });
+    console.error('❌ Create Stripe payment intent error:', error);
+    console.error('   Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Đã xảy ra lỗi khi tạo payment intent',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
 /**
- * Xác nhận thanh toán Stripe
+ * Xác nhận thanh toán Stripe (Payment đã được confirm trên frontend, chỉ cần update order)
  */
 export const confirmStripePayment = async (req, res) => {
   try {
@@ -166,40 +233,76 @@ export const confirmStripePayment = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Xác nhận payment với Stripe
-    const paymentResult = await confirmPayment(paymentIntentId);
+    console.log('✅ Verifying Stripe payment on backend...');
+    console.log('   Payment Intent ID:', paymentIntentId);
+    console.log('   Order ID:', orderId);
+    
+    // Verify payment với Stripe để đảm bảo payment đã succeeded
+    let paymentResult;
+    try {
+      paymentResult = await confirmPayment(paymentIntentId);
+      console.log('✅ Payment verified from Stripe:');
+      console.log('   Status:', paymentResult.status);
+      console.log('   Amount:', paymentResult.amount, paymentResult.currency);
+      console.log('   Payment Intent ID:', paymentResult.paymentIntentId);
+    } catch (stripeError) {
+      console.error('❌ Error verifying payment with Stripe:', stripeError.message);
+      return res.status(500).json({ 
+        error: 'Không thể xác minh thanh toán với Stripe',
+        details: stripeError.message
+      });
+    }
 
+    // Chỉ update order nếu payment đã succeeded
     if (paymentResult.status === 'succeeded') {
-      // Cập nhật trạng thái đơn hàng thành completed khi thanh toán thành công
+      console.log('✅ Payment succeeded! Updating order status...');
+      
+      // Cập nhật trạng thái đơn hàng thành completed
       await db.run(
         'UPDATE orders SET status = ?, payment_method = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         ['completed', 'card', orderId]
       );
 
-      // Gửi email xác nhận
-      await sendPaymentConfirmation({
-        customerEmail: order.customer_email,
-        customerName: order.customer_name,
-        orderId: order.id,
-        totalPrice: order.total_price,
-        paymentMethod: 'card',
-        transactionId: paymentIntentId
-      });
+      console.log('✅ Order status updated to completed');
+
+      // Gửi email xác nhận (optional, không block nếu fail)
+      try {
+        await sendPaymentConfirmation({
+          customerEmail: order.customer_email,
+          customerName: order.customer_name,
+          orderId: order.id,
+          totalPrice: order.total_price,
+          paymentMethod: 'card',
+          transactionId: paymentIntentId
+        });
+        console.log('✅ Confirmation email sent');
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send confirmation email:', emailError.message);
+        // Không throw error vì email chỉ là optional
+      }
 
       res.json({ 
         success: true, 
         message: 'Thanh toán thành công',
-        orderId: order.id
+        orderId: order.id,
+        paymentIntentId: paymentIntentId,
+        amount: paymentResult.amount,
+        currency: paymentResult.currency
       });
     } else {
+      console.warn('⚠️ Payment status is not succeeded:', paymentResult.status);
       res.status(400).json({ 
         error: 'Thanh toán chưa hoàn tất',
-        status: paymentResult.status
+        status: paymentResult.status,
+        paymentIntentId: paymentIntentId
       });
     }
   } catch (error) {
-    console.error('Confirm Stripe payment error:', error);
-    res.status(500).json({ error: 'Đã xảy ra lỗi khi xác nhận thanh toán' });
+    console.error('❌ Confirm Stripe payment error:', error);
+    res.status(500).json({ 
+      error: 'Đã xảy ra lỗi khi xác nhận thanh toán',
+      details: error.message
+    });
   }
 };
 

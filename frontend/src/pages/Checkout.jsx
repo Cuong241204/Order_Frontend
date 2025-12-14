@@ -230,68 +230,35 @@ const Checkout = () => {
 
       // Process payment based on method
       if (formData.paymentMethod === 'card') {
-        // Card payment
-        try {
-          // Try Stripe first, fallback to mock if not configured
-          try {
-            const stripeIntent = await paymentAPI.createStripePaymentIntent(order.id);
-            
-            if (stripeIntent.useMock) {
-              // Stripe not configured, use mock payment
-              await paymentAPI.processCardPayment(order.id, {
-                cardNumber: formData.cardNumber,
-                cardName: formData.cardName,
-                cardExpiry: formData.cardExpiry,
-                cardCVC: formData.cardCVC
-              });
-            } else {
-              // Stripe configured - use mock for now
-              await paymentAPI.processCardPayment(order.id, {
-                cardNumber: formData.cardNumber,
-                cardName: formData.cardName,
-                cardExpiry: formData.cardExpiry,
-                cardCVC: formData.cardCVC
-              });
-            }
-          } catch (stripeError) {
-            // Fallback to mock if Stripe fails
-            console.warn('Stripe error, using mock payment:', stripeError);
-            await paymentAPI.processCardPayment(order.id, {
-              cardNumber: formData.cardNumber,
-              cardName: formData.cardName,
-              cardExpiry: formData.cardExpiry,
-              cardCVC: formData.cardCVC
-            });
-          }
-          
-          setLoading(false);
-          setMessage('Thanh toán thành công! Đang chuyển đến trang thanh toán thành công...');
-          
-          // Clear cart after a short delay to allow message to display
-          setTimeout(() => {
-            const cartKey = user ? `cart_${user.id}` : 'cart_guest';
-            localStorage.removeItem(cartKey);
-            navigate('/payment/success', { state: { orderId: order.id, paymentMethod: 'card' } });
-          }, 1500);
-        } catch (error) {
-          console.error('Card payment error:', error);
-          setMessage(error.message || 'Đã xảy ra lỗi khi thanh toán');
-          setLoading(false);
-          return;
-        }
-      } else if (formData.paymentMethod === 'cash') {
-        // Cash payment - order stays as 'pending', will be updated when payment is received
-        // No need to update status here, it's already 'pending'
+        // Card payment - Chuyển đến trang Payment để xử lý Stripe
+        // Không xử lý payment ở đây, chỉ chuyển đến trang Payment
         setLoading(false);
-        setMessage('Đặt hàng thành công! Vui lòng thanh toán khi nhận hàng.');
         
-        // Clear cart after a short delay to allow message to display
+        // Clear cart
+        const cartKey = user ? `cart_${user.id}` : 'cart_guest';
+        localStorage.removeItem(cartKey);
+        
+        // Chuyển đến trang Payment với order data
+        navigate('/payment', { state: { order } });
+        return;
+      } else if (formData.paymentMethod === 'cash') {
+        // Cash payment - chỉ cần tạo order, không cần payment
+        setLoading(false);
+        setMessage('Đơn hàng đã được tạo! Đang chuyển đến trang thanh toán thành công...');
+        
+        // Clear cart
+        const cartKey = user ? `cart_${user.id}` : 'cart_guest';
+        localStorage.removeItem(cartKey);
+        
         setTimeout(() => {
-          const cartKey = user ? `cart_${user.id}` : 'cart_guest';
-          localStorage.removeItem(cartKey);
           navigate('/payment/success', { state: { orderId: order.id, paymentMethod: 'cash' } });
         }, 1500);
+        return;
       }
+      
+      // Fallback (không nên đến đây)
+      setLoading(false);
+      setError('Phương thức thanh toán không hợp lệ');
     } catch (error) {
       console.error('Error creating order:', error);
       // Provide more specific error messages

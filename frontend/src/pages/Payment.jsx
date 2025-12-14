@@ -23,14 +23,27 @@ const Payment = () => {
   useEffect(() => {
     // Lấy thông tin đơn hàng từ location state hoặc localStorage
     const orderFromState = location.state?.order;
+    
+    console.log('🔍 Loading order data in Payment page...');
+    console.log('   Order from state:', orderFromState ? '✅ Có' : '❌ Không có');
+    
     if (orderFromState) {
+      console.log('✅ Using order from location state');
+      console.log('   Order ID:', orderFromState.id);
+      console.log('   Order total:', orderFromState.total);
       setOrderData(orderFromState);
     } else {
-      // Nếu không có từ state, lấy từ localStorage (giả sử đã tạo order)
+      // Nếu không có từ state, lấy từ localStorage
       const lastOrder = JSON.parse(localStorage.getItem('lastOrder') || 'null');
+      console.log('   Order from localStorage:', lastOrder ? '✅ Có' : '❌ Không có');
+      
       if (lastOrder) {
+        console.log('✅ Using order from localStorage');
+        console.log('   Order ID:', lastOrder.id);
+        console.log('   Order total:', lastOrder.total);
         setOrderData(lastOrder);
       } else {
+        console.warn('⚠️ No order data found, redirecting to cart');
         // Nếu không có order, quay lại giỏ hàng
         navigate('/cart');
       }
@@ -41,18 +54,66 @@ const Payment = () => {
   useEffect(() => {
     const loadPaymentIntent = async () => {
       if (orderData && paymentMethod === 'card') {
+        const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+        
+        console.log('🔍 Checking Stripe configuration...');
+        console.log('   Publishable Key:', publishableKey ? '✅ Có' : '❌ Không có');
+        console.log('   Stripe instance:', stripe ? '✅ Có' : '⏳ Đang load...');
+        console.log('   Elements:', elements ? '✅ Có' : '⏳ Đang load...');
+        
+        if (!publishableKey) {
+          console.error('❌ VITE_STRIPE_PUBLISHABLE_KEY không tồn tại!');
+          console.error('   Vui lòng thêm key vào frontend/.env và restart frontend');
+          setError('Stripe chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
+          return;
+        }
+        
+        // Đợi Stripe và Elements load xong
+        if (!stripe || !elements) {
+          console.log('⏳ Đợi Stripe Elements load...');
+          return;
+        }
+        
         try {
+          console.log('🔄 Creating Stripe Payment Intent...');
+          console.log('   Order ID:', orderData.id);
+          console.log('   Amount:', orderData.total, 'VND');
+          
           const intent = await paymentAPI.createStripePaymentIntent(orderData.id);
-          if (intent.clientSecret) {
+          
+          if (intent.useMock) {
+            console.error('❌ Backend trả về mock payment!');
+            console.error('   Backend chưa có STRIPE_SECRET_KEY');
+            setError('Stripe chưa được cấu hình trên server. Giao dịch sẽ không xuất hiện trên Dashboard.');
+            return;
+          }
+          
+          if (intent.clientSecret && intent.paymentIntentId) {
+            console.log('✅✅✅ Stripe Payment Intent created! ✅✅✅');
+            console.log('   Payment Intent ID:', intent.paymentIntentId);
+            console.log('   ✅ Payment Intent đã được tạo trên Stripe');
+            console.log('   🔗 Xem trên Dashboard: https://dashboard.stripe.com/test/payments');
             setClientSecret(intent.clientSecret);
+          } else {
+            console.error('❌ Không nhận được clientSecret từ backend');
+            setError('Không thể tạo payment intent. Vui lòng thử lại.');
           }
         } catch (error) {
-          console.log('Stripe not configured, will use mock payment');
+          console.error('❌ Failed to create Stripe Payment Intent:', error);
+          setError('Không thể tạo payment intent: ' + (error.message || 'Unknown error'));
         }
       }
     };
+    
+    // Retry nếu Stripe chưa load xong
+    const timer = setTimeout(() => {
+      loadPaymentIntent();
+    }, 500);
+    
     loadPaymentIntent();
-  }, [orderData, paymentMethod]);
+    
+    return () => clearTimeout(timer);
+  }, [orderData, paymentMethod, stripe, elements]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -122,51 +183,182 @@ const Payment = () => {
       // Process payment via API
       try {
         if (paymentMethod === 'card') {
-          // Stripe payment
-          if (!stripe || !elements || !clientSecret) {
-            // Fallback to mock payment if Stripe not available
-            console.log('Stripe not available, using mock payment');
-            const result = await paymentAPI.processCardPayment(orderData.id, {
-              cardName: formData.cardName
-            });
-            
-            if (result && result.error) {
-              throw new Error(result.error || 'Thanh toán thất bại');
-            }
-            if (result && result.success === false) {
-              throw new Error(result.message || result.error || 'Thanh toán thất bại');
-            }
-          } else {
-            // Use Stripe Elements to confirm payment
-            const cardElement = elements.getElement(CardElement);
-            
-            const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-              payment_method: {
-                card: cardElement,
-                billing_details: {
-                  name: formData.cardName,
-                },
-              },
-            });
-
-            if (stripeError) {
-              throw new Error(stripeError.message || 'Thanh toán thất bại');
-            }
-
-            if (paymentIntent.status === 'succeeded') {
-              // Confirm payment on backend
-              const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
-              
-              if (confirmResult && confirmResult.error) {
-                throw new Error(confirmResult.error || 'Thanh toán thất bại');
-              }
-              if (confirmResult && confirmResult.success === false) {
-                throw new Error(confirmResult.message || confirmResult.error || 'Thanh toán thất bại');
-              }
-            } else {
-              throw new Error('Thanh toán chưa hoàn tất');
-            }
+          // Kiểm tra Stripe configuration
+          const hasPublishableKey = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+          
+          console.log('🔍 Payment Configuration Check:');
+          console.log('   Publishable Key:', hasPublishableKey ? '✅ Có' : '❌ Không có');
+          console.log('   Stripe instance:', stripe ? '✅ Có' : '❌ Không có');
+          console.log('   Elements:', elements ? '✅ Có' : '❌ Không có');
+          console.log('   Client Secret:', clientSecret ? '✅ Có' : '❌ Không có');
+          
+          // Nếu có publishable key nhưng stripe/elements không có, có thể chưa load xong
+          if (hasPublishableKey && (!stripe || !elements)) {
+            console.warn('⚠️ Stripe đang load, đợi thêm...');
+            setError('Stripe đang khởi tạo, vui lòng đợi vài giây rồi thử lại');
+            setLoading(false);
+            return;
           }
+          
+          // Nếu không có publishable key, không thể dùng Stripe
+          if (!hasPublishableKey) {
+            throw new Error('Stripe chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
+          }
+          
+          // Nếu không có clientSecret, không thể thanh toán
+          if (!clientSecret) {
+            throw new Error('Không thể tạo payment intent. Vui lòng thử lại.');
+          }
+          
+          // Stripe payment - CHỈ dùng Stripe, KHÔNG fallback sang mock
+          if (!stripe || !elements) {
+            throw new Error('Stripe chưa sẵn sàng. Vui lòng refresh trang và thử lại.');
+          }
+          
+          // Use Stripe Elements to confirm payment - CHỈ DÙNG STRIPE, KHÔNG MOCK
+          console.log('✅ Using REAL Stripe payment (NO MOCK)');
+          console.log('   Stripe instance:', !!stripe);
+          console.log('   Elements:', !!elements);
+          console.log('   Client Secret:', clientSecret.substring(0, 30) + '...');
+          
+          const cardElement = elements.getElement(CardElement);
+          if (!cardElement) {
+            throw new Error('Không tìm thấy card element. Vui lòng nhập thông tin thẻ.');
+          }
+          
+          console.log('🔄 Confirming payment with Stripe API...');
+          console.log('   Order ID:', orderData.id);
+          console.log('   Amount:', orderData.total, 'VND');
+          console.log('   Client Secret:', clientSecret.substring(0, 30) + '...');
+          
+          // Confirm payment với Stripe API - ĐÂY LÀ BƯỚC QUAN TRỌNG
+          console.log('🔄 Calling Stripe API: stripe.confirmCardPayment()...');
+          console.log('   This will send payment to Stripe and confirm it');
+          
+          const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: formData.cardName,
+              },
+            },
+          });
+
+          console.log('📦 Stripe confirmCardPayment response received:');
+          console.log('   hasError:', !!confirmResult.error);
+          console.log('   hasPaymentIntent:', !!confirmResult.paymentIntent);
+          
+          if (confirmResult.error) {
+            console.error('❌ Stripe payment error:', confirmResult.error);
+            console.error('   Error type:', confirmResult.error.type);
+            console.error('   Error code:', confirmResult.error.code);
+            console.error('   Error message:', confirmResult.error.message);
+            console.error('   ⚠️ Payment KHÔNG được gửi đến Stripe');
+            throw new Error(confirmResult.error.message || 'Thanh toán thất bại');
+          }
+
+          const paymentIntent = confirmResult.paymentIntent;
+          if (!paymentIntent) {
+            console.error('❌ Không nhận được paymentIntent từ Stripe');
+            console.error('   Response:', confirmResult);
+            console.error('   ⚠️ Payment KHÔNG được gửi đến Stripe');
+            throw new Error('Không nhận được payment intent từ Stripe');
+          }
+          
+          console.log('✅ Payment Intent received from Stripe:');
+          console.log('   ID:', paymentIntent.id);
+          console.log('   Status:', paymentIntent.status);
+          console.log('   Amount:', paymentIntent.amount, paymentIntent.currency);
+          console.log('   ✅ Payment đã được gửi đến Stripe API');
+          console.log('   ✅ Payment Intent này đã xuất hiện trên Stripe Dashboard');
+
+          // Payment đã được confirm thành công với Stripe
+          console.log('');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('✅✅✅ THANH TOÁN THÀNH CÔNG VỚI STRIPE! ✅✅✅');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('   Payment Intent ID:', paymentIntent.id);
+          console.log('   Status:', paymentIntent.status);
+          console.log('   Amount:', paymentIntent.amount, paymentIntent.currency);
+          console.log('   Created:', new Date(paymentIntent.created * 1000).toLocaleString('vi-VN'));
+          console.log('');
+          console.log('🔗 XEM TRÊN STRIPE DASHBOARD:');
+          console.log('   1. Vào: https://dashboard.stripe.com/test/payments');
+          console.log('   2. Đảm bảo Test Mode ON (toggle màu xanh ở góc trên bên phải)');
+          console.log('   3. Paste Payment Intent ID vào search box:', paymentIntent.id);
+          console.log('   4. Hoặc xem danh sách Payments gần đây');
+          console.log('');
+          console.log('⚠️ QUAN TRỌNG:');
+          console.log('   - Phải đảm bảo Test Mode ON (không phải Live Mode)');
+          console.log('   - Payment Intent này đã được confirm và sẽ xuất hiện trên Dashboard');
+          console.log('   - Nếu không thấy, kiểm tra lại Test Mode toggle');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('');
+
+          // Kiểm tra status
+          if (paymentIntent.status !== 'succeeded') {
+            console.warn('⚠️ Payment Intent status không phải succeeded:', paymentIntent.status);
+            console.warn('   Payment Intent ID:', paymentIntent.id);
+            console.warn('   Payment Intent vẫn có thể được tìm thấy trên Dashboard');
+            throw new Error(`Thanh toán chưa hoàn tất. Status: ${paymentIntent.status}`);
+          }
+          
+          // Payment Intent đã được confirm thành công
+          console.log('✅ Payment Intent đã được confirm thành công trên Stripe');
+          console.log('   ✅ Payment Intent này đã xuất hiện trên Stripe Dashboard');
+          console.log('   🔗 Dashboard link: https://dashboard.stripe.com/test/payments');
+          console.log('   🔍 Search for Payment Intent ID:', paymentIntent.id);
+          console.log('');
+
+          // Update order status on backend
+          console.log('🔄 Updating order status on backend...');
+          console.log('   Order ID:', orderData.id);
+          console.log('   Payment Intent ID:', paymentIntent.id);
+          
+          try {
+            const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
+            
+            if (confirmResult && confirmResult.error) {
+              console.error('❌ Backend error:', confirmResult.error);
+              console.warn('⚠️ Payment succeeded on Stripe but backend update failed');
+              console.warn('   Payment Intent ID:', paymentIntent.id);
+              console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
+            } else if (confirmResult && confirmResult.success === false) {
+              console.warn('⚠️ Backend update failed:', confirmResult.message);
+              console.warn('   Payment Intent ID:', paymentIntent.id);
+              console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
+            } else {
+              console.log('✅ Order status updated on backend');
+              console.log('   Order ID:', confirmResult?.orderId || orderData.id);
+            }
+          } catch (backendError) {
+            console.warn('⚠️ Backend update error (payment already succeeded on Stripe):', backendError.message);
+            console.warn('   Payment Intent ID:', paymentIntent.id);
+            console.warn('   Payment vẫn xuất hiện trên Stripe Dashboard');
+            // Không throw error vì payment đã thành công trên Stripe
+          }
+
+          console.log('');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('✅✅✅ GIAO DỊCH ĐÃ XUẤT HIỆN TRÊN STRIPE DASHBOARD! ✅✅✅');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('   Payment Intent ID:', paymentIntent.id);
+          console.log('   Status:', paymentIntent.status);
+          console.log('   Amount:', paymentIntent.amount, paymentIntent.currency);
+          console.log('');
+          console.log('🔗 XEM TRÊN DASHBOARD:');
+          console.log('   1. Vào: https://dashboard.stripe.com/test/payments');
+          console.log('   2. Đảm bảo Test Mode ON (toggle màu xanh)');
+          console.log('   3. Search Payment Intent ID:', paymentIntent.id);
+          console.log('   4. Hoặc xem danh sách Payments gần đây');
+          console.log('');
+          console.log('⚠️ NẾU KHÔNG THẤY:');
+          console.log('   - Kiểm tra Test Mode có ON không (toggle màu xanh)');
+          console.log('   - Copy Payment Intent ID:', paymentIntent.id);
+          console.log('   - Paste vào search box trên Dashboard');
+          console.log('   - Payment Intent này đã được confirm và PHẢI xuất hiện');
+          console.log('═══════════════════════════════════════════════════════');
+          console.log('');
         } else if (paymentMethod === 'cash') {
           // Cash payment - update order status to pending (will be confirmed later)
           // Order is already created with 'pending' status

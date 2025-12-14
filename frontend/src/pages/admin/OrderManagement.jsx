@@ -545,7 +545,36 @@ const OrderManagement = () => {
                   )}
                   {order.status === 'completed' && (
                     <button
-                      onClick={() => setSelectedOrder(order)}
+                      onClick={() => {
+                        console.log('📄 Opening invoice for order:', order);
+                        console.log('   Order ID:', order.id);
+                        console.log('   Order items:', order.items);
+                        console.log('   Order total:', order.total);
+                        // Đảm bảo order data đầy đủ trước khi truyền cho Invoice
+                        const invoiceOrder = {
+                          ...order,
+                          // Đảm bảo có đầy đủ các field cần thiết
+                          id: order.id,
+                          items: order.items || [],
+                          total: order.total || order.total_price || 0,
+                          total_price: order.total || order.total_price || 0,
+                          totalPrice: order.total || order.total_price || 0,
+                          customer_phone: order.userPhone || order.customer_phone,
+                          userPhone: order.userPhone || order.customer_phone,
+                          table_number: order.tableNumber || order.table_number,
+                          tableNumber: order.tableNumber || order.table_number,
+                          number_of_guests: order.numberOfGuests || order.number_of_guests,
+                          numberOfGuests: order.numberOfGuests || order.number_of_guests,
+                          payment_method: order.paymentMethod || order.payment_method,
+                          paymentMethod: order.paymentMethod || order.payment_method,
+                          created_at: order.createdAt || order.created_at,
+                          createdAt: order.createdAt || order.created_at,
+                          date: order.createdAt || order.created_at || order.date,
+                          status: order.status
+                        };
+                        console.log('📄 Invoice order data:', invoiceOrder);
+                        setSelectedOrder(invoiceOrder);
+                      }}
                       style={{
                         background: '#667eea',
                         color: 'white',

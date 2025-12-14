@@ -29,14 +29,35 @@ const Dashboard = () => {
       ]);
 
       // Transform orders
-      const orders = ordersData.map(order => ({
-        id: order.id,
-        userId: order.user_id,
-        userName: order.customer_name,
-        total: order.total_price,
-        status: order.status,
-        createdAt: order.created_at
-      }));
+      const orders = ordersData.map(order => {
+        // Parse items - có thể là string hoặc array
+        let items = [];
+        let totalItems = 0;
+        try {
+          if (typeof order.items === 'string') {
+            items = JSON.parse(order.items);
+          } else if (Array.isArray(order.items)) {
+            items = order.items;
+          }
+          // Tính tổng số lượng món
+          totalItems = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        } catch (e) {
+          console.error('Error parsing items for order', order.id, ':', e);
+          items = [];
+          totalItems = 0;
+        }
+        
+        return {
+          id: order.id,
+          userId: order.user_id,
+          userName: order.customer_name,
+          total: order.total_price,
+          status: order.status,
+          createdAt: order.created_at,
+          items: items,
+          totalItems: totalItems
+        };
+      });
 
       const menuItems = menuItemsData;
       const tables = tablesData;
@@ -94,8 +115,30 @@ const Dashboard = () => {
         todayRevenue: todayRevenue
       });
       
+      // Parse items cho recent orders từ localStorage
       const recent = orders
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .map(order => {
+          let items = [];
+          let totalItems = 0;
+          try {
+            if (order.items) {
+              if (typeof order.items === 'string') {
+                items = JSON.parse(order.items);
+              } else if (Array.isArray(order.items)) {
+                items = order.items;
+              }
+              totalItems = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            }
+          } catch (e) {
+            console.error('Error parsing items:', e);
+          }
+          return {
+            ...order,
+            items: items,
+            totalItems: totalItems
+          };
+        })
+        .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
         .slice(0, 5);
       setRecentOrders(recent);
     }
@@ -347,7 +390,7 @@ const Dashboard = () => {
                       {formatPrice(order.total)}
                     </p>
                     <p style={{ color: '#718096', fontSize: '0.85rem', margin: 0 }}>
-                      {order.items?.length || 0} món
+                      {order.totalItems || (order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0)} món
                     </p>
                   </div>
                 </div>

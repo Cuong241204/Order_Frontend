@@ -2,13 +2,33 @@
 // Lưu ý: Trong production, nên lưu trong .env file
 import Stripe from 'stripe';
 
-// Only initialize Stripe if secret key is provided
+// Initialize Stripe - check key at runtime, not at module load
 let stripe = null;
-if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== '') {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia',
-  });
-}
+
+// Function to get or initialize Stripe instance
+const getStripe = () => {
+  if (stripe) {
+    return stripe;
+  }
+  
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  
+  if (!secretKey || secretKey.trim() === '') {
+    console.warn('⚠️ STRIPE_SECRET_KEY not found or empty');
+    return null;
+  }
+  
+  try {
+    stripe = new Stripe(secretKey.trim(), {
+      apiVersion: '2024-12-18.acacia',
+    });
+    console.log('✅ Stripe instance initialized');
+    return stripe;
+  } catch (error) {
+    console.error('❌ Failed to initialize Stripe:', error.message);
+    return null;
+  }
+};
 
 /**
  * Tạo Payment Intent với Stripe
@@ -16,7 +36,8 @@ if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== '') {
  * @returns {Promise<Object>} Payment Intent
  */
 export const createPaymentIntent = async (orderData) => {
-  if (!stripe) {
+  const stripeInstance = getStripe();
+  if (!stripeInstance) {
     throw new Error('Stripe chưa được cấu hình. Vui lòng thêm STRIPE_SECRET_KEY vào .env');
   }
 
@@ -29,11 +50,25 @@ export const createPaymentIntent = async (orderData) => {
   } = orderData;
 
   try {
+    // Validate amount
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      throw new Error(`Invalid amount: ${amount}. Amount must be a positive number.`);
+    }
+
     // Stripe supports VND directly
     // Amount should be in smallest currency unit (for VND, it's the same as the amount)
-    const amountInCents = Math.round(amount);
+    const amountInCents = Math.round(Number(amount));
+    
+    if (amountInCents <= 0) {
+      throw new Error(`Invalid amount after rounding: ${amountInCents}. Amount must be greater than 0.`);
+    }
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    console.log('🔄 Calling Stripe API: paymentIntents.create()');
+    console.log('   Amount:', amountInCents, 'VND');
+    console.log('   Currency: vnd');
+    console.log('   Order ID:', orderId);
+
+    const paymentIntent = await stripeInstance.paymentIntents.create({
       amount: amountInCents,
       currency: 'vnd', // Stripe supports VND
       metadata: {
@@ -47,12 +82,22 @@ export const createPaymentIntent = async (orderData) => {
       },
     });
 
+    console.log('✅ Stripe payment intent created:');
+    console.log('   ID:', paymentIntent.id);
+    console.log('   Status:', paymentIntent.status);
+    console.log('   Amount:', paymentIntent.amount, paymentIntent.currency);
+
     return {
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id
     };
   } catch (error) {
-    console.error('Stripe create payment intent error:', error);
+    console.error('❌ Stripe create payment intent error:');
+    console.error('   Message:', error.message);
+    console.error('   Type:', error.type);
+    console.error('   Code:', error.code);
+    console.error('   Status:', error.statusCode);
+    console.error('   Raw error:', error);
     throw new Error('Không thể tạo payment intent: ' + error.message);
   }
 };
@@ -63,12 +108,13 @@ export const createPaymentIntent = async (orderData) => {
  * @returns {Promise<Object>} Payment Intent status
  */
 export const confirmPayment = async (paymentIntentId) => {
-  if (!stripe) {
+  const stripeInstance = getStripe();
+  if (!stripeInstance) {
     throw new Error('Stripe chưa được cấu hình');
   }
 
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripeInstance.paymentIntents.retrieve(paymentIntentId);
     
     return {
       status: paymentIntent.status,
@@ -83,5 +129,5 @@ export const confirmPayment = async (paymentIntentId) => {
   }
 };
 
-export default stripe;
+export default getStripe;
 
