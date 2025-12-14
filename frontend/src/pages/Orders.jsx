@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Home, CheckCircle } from 'lucide-react';
 import { ordersAPI } from '../services/api.js';
@@ -8,9 +8,11 @@ const Orders = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showOnlyLatest, setShowOnlyLatest] = useState(false);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -46,24 +48,68 @@ const Orders = () => {
 
   useEffect(() => {
     loadOrders();
-  }, [user]);
+  }, [user, searchParams]);
 
   useEffect(() => {
-    // Kiểm tra nếu có thông báo thành công từ location state
-    if (location.state?.paymentSuccess || location.state?.orderSuccess) {
+    // Kiểm tra nếu có thông báo thành công từ location state hoặc query params
+    const orderId = searchParams.get('orderId');
+    const paymentSuccess = location.state?.paymentSuccess || location.state?.orderSuccess || orderId;
+    
+    if (paymentSuccess) {
       setShowSuccessMessage(true);
+      setShowOnlyLatest(true); // Chỉ hiển thị đơn hàng mới nhất
       // Tự động ẩn sau 5 giây
       const timer = setTimeout(() => {
         setShowSuccessMessage(false);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [location.state]);
+  }, [location.state, searchParams]);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
-      if (user && user.id) {
+      const orderId = searchParams.get('orderId');
+      
+      // Nếu có orderId từ query params (sau khi thanh toán), chỉ load đơn hàng đó
+      if (orderId) {
+        try {
+          const order = await ordersAPI.getById(orderId);
+          let items = [];
+          try {
+            if (typeof order.items === 'string') {
+              items = JSON.parse(order.items);
+            } else if (Array.isArray(order.items)) {
+              items = order.items;
+            }
+          } catch (e) {
+            console.error('Error parsing items:', e);
+            items = [];
+          }
+          
+          const transformedOrder = {
+            id: order.id,
+            date: order.created_at,
+            createdAt: order.created_at,
+            items: items,
+            total: order.total_price,
+            total_price: order.total_price,
+            totalPrice: order.total_price,
+            status: order.status,
+            customer_name: order.customer_name,
+            customer_phone: order.customer_phone,
+            customer_email: order.customer_email,
+            table_number: order.table_number,
+            number_of_guests: order.number_of_guests,
+            payment_method: order.payment_method
+          };
+          setOrders([transformedOrder]);
+          setShowOnlyLatest(true);
+        } catch (error) {
+          console.error('Error loading order by ID:', error);
+          setOrders([]);
+        }
+      } else if (user && user.id) {
         // Load orders for logged in user
         const userOrders = await ordersAPI.getUserOrders(user.id);
         // Transform API response
@@ -83,11 +129,22 @@ const Orders = () => {
           return {
             id: order.id,
             date: order.created_at,
+            createdAt: order.created_at,
             items: items,
             total: order.total_price,
-            status: order.status
+            total_price: order.total_price,
+            totalPrice: order.total_price,
+            status: order.status,
+            customer_name: order.customer_name,
+            customer_phone: order.customer_phone,
+            customer_email: order.customer_email,
+            table_number: order.table_number,
+            number_of_guests: order.number_of_guests,
+            payment_method: order.payment_method
           };
         });
+        // Sort by date descending (newest first)
+        transformedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setOrders(transformedOrders);
       } else {
         // For guests, try to get from localStorage
@@ -95,6 +152,8 @@ const Orders = () => {
         if (stored) {
           const allOrders = JSON.parse(stored);
           const guestOrders = allOrders.filter(order => !order.userId || order.userId === null);
+          // Sort by date descending
+          guestOrders.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
           setOrders(guestOrders);
         } else {
           setOrders([]);
@@ -119,7 +178,7 @@ const Orders = () => {
           color: 'white',
           textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
         }}>
-          Lịch Sử Đơn Hàng
+          {showOnlyLatest ? 'Đơn Hàng Của Bạn' : 'Lịch Sử Đơn Hàng'}
         </h2>
 
         {/* Success Message */}
@@ -230,7 +289,7 @@ const Orders = () => {
           </div>
         ) : (
           <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            {orders.map((order) => (
+            {(showOnlyLatest ? orders.slice(0, 1) : orders).map((order) => (
               <div
                 key={order.id}
                 style={{

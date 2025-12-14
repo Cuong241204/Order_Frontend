@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Home, Receipt } from 'lucide-react';
+import { CheckCircle, Home, Receipt, Printer } from 'lucide-react';
 import { ordersAPI } from '../services/api.js';
+import Invoice from '../components/Invoice.jsx';
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showInvoice, setShowInvoice] = useState(false);
   
   const orderId = searchParams.get('orderId');
   const transactionId = searchParams.get('transactionId');
@@ -283,6 +285,38 @@ const PaymentSuccess = () => {
               Quay Về Trang Chủ
             </button>
             
+            {/* Nút In Hóa Đơn */}
+            {orderData && (
+              <button
+                onClick={() => setShowInvoice(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 2rem',
+                  background: 'white',
+                  color: '#667eea',
+                  border: '2px solid #667eea',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f0f4ff';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <Printer size={20} />
+                In Hóa Đơn
+              </button>
+            )}
+            
             {/* Nút Xem Đơn Hàng - Phụ */}
             <button
               onClick={() => navigate('/orders')}
@@ -292,8 +326,8 @@ const PaymentSuccess = () => {
                 gap: '0.5rem',
                 padding: '0.75rem 2rem',
                 background: 'white',
-                color: '#667eea',
-                border: '2px solid #667eea',
+                color: '#718096',
+                border: '2px solid #e2e8f0',
                 borderRadius: '12px',
                 fontSize: '1rem',
                 fontWeight: '600',
@@ -301,7 +335,7 @@ const PaymentSuccess = () => {
                 transition: 'all 0.3s'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f0f4ff';
+                e.currentTarget.style.background = '#f7fafc';
                 e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
@@ -328,11 +362,50 @@ const PaymentSuccess = () => {
           </p>
         </div>
       </div>
+
+      {/* Invoice Modal */}
+      {showInvoice && orderData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem',
+          overflow: 'auto'
+        }} onClick={() => setShowInvoice(false)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '3rem',
+            maxWidth: '900px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            <Invoice 
+              order={orderData} 
+              onClose={() => setShowInvoice(false)}
+              showActions={true}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default PaymentSuccess;
+
+
+
 
 
 

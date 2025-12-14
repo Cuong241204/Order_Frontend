@@ -107,3 +107,6 @@ STRIPE_SECRET_KEY=sk_test_... # Your Stripe secret key
 **Hệ thống hiện tại:**
 - Stripe (card) - Mặc định, khuyến nghị
 - Tiền mặt - Thanh toán khi nhận hàng
+
+
+

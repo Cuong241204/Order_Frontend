@@ -145,3 +145,6 @@ else
     echo "  3. .env file có đúng không?"
 fi
 echo ""
+
+
+

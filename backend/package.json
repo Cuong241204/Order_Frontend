@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "lsof -ti:3001 | xargs kill -9 2>/dev/null; node --watch src/server.js",
     "fix": "./fix-port.sh",
     "kill": "lsof -ti:3001 | xargs kill -9 2>/dev/null || echo 'No process on port 3001'"
   },

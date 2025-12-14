@@ -5,21 +5,30 @@ export const getAllOrders = async (req, res) => {
   try {
     const { status, search } = req.query;
     
-    let query = 'SELECT * FROM orders ORDER BY created_at DESC';
+    let query = 'SELECT * FROM orders';
     let params = [];
+    const conditions = [];
 
+    // Build WHERE conditions
     if (status && status !== 'all') {
-      query = 'SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC';
-      params = [status];
+      conditions.push('status = ?');
+      params.push(status);
     }
 
     if (search) {
-      query = query.includes('WHERE') 
-        ? query.replace('ORDER BY', `AND (id LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR customer_phone LIKE ?) ORDER BY`)
-        : 'SELECT * FROM orders WHERE id LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR customer_phone LIKE ? ORDER BY created_at DESC';
+      // Search theo ID, số điện thoại, số bàn, và tổng tiền
+      conditions.push('(id LIKE ? OR customer_phone LIKE ? OR table_number LIKE ? OR CAST(total_price AS TEXT) LIKE ?)');
       const searchTerm = `%${search}%`;
-      params = [searchTerm, searchTerm, searchTerm, searchTerm];
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
+
+    // Add WHERE clause if there are conditions
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    // Add ORDER BY
+    query += ' ORDER BY created_at DESC';
 
     const orders = await db.all(query, params);
     res.json(orders);
