@@ -17,11 +17,7 @@ const Checkout = () => {
     phone: '',
     tableNumber: currentTable?.number || '',
     numberOfGuests: '1',
-    paymentMethod: 'card', // Stripe as default
-    cardNumber: '',
-    cardName: '',
-    cardExpiry: '',
-    cardCVC: ''
+    paymentMethod: 'card' // Stripe as default
   });
 
   useEffect(() => {
@@ -71,22 +67,6 @@ const Checkout = () => {
     }));
   };
 
-  const handleCardNumberChange = (e) => {
-    let value = e.target.value.replace(/\s/g, '');
-    if (value.length <= 16) {
-      value = value.match(/.{1,4}/g)?.join(' ') || value;
-      setFormData(prev => ({ ...prev, cardNumber: value }));
-    }
-  };
-
-  const handleExpiryChange = (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-      value = value.substring(0, 2) + '/' + value.substring(2, 4);
-    }
-    setFormData(prev => ({ ...prev, cardExpiry: value }));
-  };
-
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -130,50 +110,8 @@ const Checkout = () => {
     }
 
     if (formData.paymentMethod === 'card') {
-      if (!formData.cardNumber || !formData.cardName || !formData.cardExpiry || !formData.cardCVC) {
-        setMessage('Vui lòng điền đầy đủ thông tin thanh toán');
-        setLoading(false);
-        return;
-      }
-      
-      // Validate card number (should be 16 digits)
-      const cardNumberDigits = formData.cardNumber.replace(/\s/g, '');
-      if (cardNumberDigits.length !== 16 || !/^\d+$/.test(cardNumberDigits)) {
-        setMessage('Số thẻ không hợp lệ (phải có 16 chữ số)');
-        setLoading(false);
-        return;
-      }
-
-      // Validate expiry date (MM/YY format)
-      if (!/^\d{2}\/\d{2}$/.test(formData.cardExpiry)) {
-        setMessage('Ngày hết hạn không hợp lệ (định dạng MM/YY)');
-        setLoading(false);
-        return;
-      }
-
-      // Validate CVC (3 digits)
-      if (!/^\d{3}$/.test(formData.cardCVC)) {
-        setMessage('CVC không hợp lệ (phải có 3 chữ số)');
-        setLoading(false);
-        return;
-      }
-
-      // Validate card name
-      if (formData.cardName.trim().length < 2) {
-        setMessage('Tên chủ thẻ phải có ít nhất 2 ký tự');
-        setLoading(false);
-        return;
-      }
-
-      // Validate expiry date is not in the past
-      const [month, year] = formData.cardExpiry.split('/');
-      const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
-      const now = new Date();
-      if (expiryDate < now) {
-        setMessage('Thẻ đã hết hạn');
-        setLoading(false);
-        return;
-      }
+      // Card payment will be processed on Payment page
+      // No need to validate card info here anymore
     }
 
     // Simulate payment processing
@@ -230,55 +168,14 @@ const Checkout = () => {
 
       // Process payment based on method
       if (formData.paymentMethod === 'card') {
-        // Card payment
-        try {
-          // Try Stripe first, fallback to mock if not configured
-          try {
-            const stripeIntent = await paymentAPI.createStripePaymentIntent(order.id);
-            
-            if (stripeIntent.useMock) {
-              // Stripe not configured, use mock payment
-              await paymentAPI.processCardPayment(order.id, {
-                cardNumber: formData.cardNumber,
-                cardName: formData.cardName,
-                cardExpiry: formData.cardExpiry,
-                cardCVC: formData.cardCVC
-              });
-            } else {
-              // Stripe configured - use mock for now
-              await paymentAPI.processCardPayment(order.id, {
-                cardNumber: formData.cardNumber,
-                cardName: formData.cardName,
-                cardExpiry: formData.cardExpiry,
-                cardCVC: formData.cardCVC
-              });
-            }
-          } catch (stripeError) {
-            // Fallback to mock if Stripe fails
-            console.warn('Stripe error, using mock payment:', stripeError);
-            await paymentAPI.processCardPayment(order.id, {
-              cardNumber: formData.cardNumber,
-              cardName: formData.cardName,
-              cardExpiry: formData.cardExpiry,
-              cardCVC: formData.cardCVC
-            });
-          }
-          
-          setLoading(false);
-          setMessage('Thanh toán thành công! Đang chuyển đến trang thanh toán thành công...');
-          
-          // Clear cart after a short delay to allow message to display
-          setTimeout(() => {
-            const cartKey = user ? `cart_${user.id}` : 'cart_guest';
-            localStorage.removeItem(cartKey);
-            navigate('/payment/success', { state: { orderId: order.id, paymentMethod: 'card' } });
-          }, 1500);
-        } catch (error) {
-          console.error('Card payment error:', error);
-          setMessage(error.message || 'Đã xảy ra lỗi khi thanh toán');
-          setLoading(false);
-          return;
-        }
+        // Redirect to Payment page for Stripe payment
+        setLoading(false);
+        setMessage('Đang chuyển đến trang thanh toán...');
+        
+        // Navigate to payment page with order data
+        setTimeout(() => {
+          navigate('/payment', { state: { order } });
+        }, 500);
       } else if (formData.paymentMethod === 'cash') {
         // Cash payment - order stays as 'pending', will be updated when payment is received
         // No need to update status here, it's already 'pending'
@@ -649,7 +546,7 @@ const Checkout = () => {
                       Thanh Toán Bằng Stripe
                     </h4>
                     <p style={{ color: '#718096', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                      Thanh toán an toàn và bảo mật với Stripe. Bạn sẽ nhập thông tin thẻ ở trang thanh toán tiếp theo.
+                      Bạn sẽ được chuyển đến trang thanh toán an toàn của Stripe để nhập thông tin thẻ.
                     </p>
                     <div style={{
                       padding: '1rem',
@@ -660,104 +557,6 @@ const Checkout = () => {
                       <p style={{ color: '#2d3748', fontSize: '0.9rem', margin: 0 }}>
                         <strong>Hỗ trợ:</strong> Visa, Mastercard, JCB, American Express
                       </p>
-                    </div>
-                  </div>
-                )}
-
-                {formData.paymentMethod === 'card' && (
-                  <div style={{
-                    marginTop: '1rem',
-                    padding: '1.5rem',
-                    background: '#f7fafc',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0'
-                  }}>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                        Số thẻ *
-                      </label>
-                      <input
-                        type="text"
-                        name="cardNumber"
-                        value={formData.cardNumber}
-                        onChange={handleCardNumberChange}
-                        required
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '2px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '1rem'
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                        Tên chủ thẻ *
-                      </label>
-                      <input
-                        type="text"
-                        name="cardName"
-                        value={formData.cardName}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="NGUYEN VAN A"
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '2px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '1rem'
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                          Ngày hết hạn *
-                        </label>
-                        <input
-                          type="text"
-                          name="cardExpiry"
-                          value={formData.cardExpiry}
-                          onChange={handleExpiryChange}
-                          required
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            border: '2px solid #e2e8f0',
-                            borderRadius: '8px',
-                            fontSize: '1rem'
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
-                          CVC *
-                        </label>
-                        <input
-                          type="text"
-                          name="cardCVC"
-                          value={formData.cardCVC}
-                          onChange={handleInputChange}
-                          required
-                          placeholder="123"
-                          maxLength={3}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            border: '2px solid #e2e8f0',
-                            borderRadius: '8px',
-                            fontSize: '1rem'
-                          }}
-                        />
-                      </div>
                     </div>
                   </div>
                 )}

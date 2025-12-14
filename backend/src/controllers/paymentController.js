@@ -204,7 +204,8 @@ export const confirmStripePayment = async (req, res) => {
 };
 
 /**
- * Xử lý thanh toán bằng thẻ (Mock fallback nếu Stripe chưa cấu hình)
+ * Xử lý thanh toán bằng thẻ (Deprecated - use Stripe flow instead)
+ * This endpoint is kept for backward compatibility but should not be used
  */
 export const processCardPayment = async (req, res) => {
   try {
@@ -212,6 +213,11 @@ export const processCardPayment = async (req, res) => {
 
     if (!orderId) {
       return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    // Validate cardData exists
+    if (!cardData) {
+      return res.status(400).json({ error: 'Card data is required' });
     }
 
     const order = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
@@ -224,43 +230,17 @@ export const processCardPayment = async (req, res) => {
       return res.status(400).json({ error: 'Order is not pending' });
     }
 
-    // Mock payment - chỉ dùng khi Stripe chưa được cấu hình
-    // Validate card data
-    if (!cardData || !cardData.cardNumber || !cardData.cardName) {
-      return res.status(400).json({ error: 'Thông tin thẻ không đầy đủ' });
+    // Validate card data - check null before accessing properties
+    if (!cardData.cardName || cardData.cardName.trim().length === 0) {
+      return res.status(400).json({ error: 'Tên chủ thẻ không được để trống' });
     }
 
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Mock: luôn thành công (trong production nên dùng Stripe)
-    const paymentSuccess = true;
-
-    if (paymentSuccess) {
-      // Cập nhật trạng thái đơn hàng thành completed khi thanh toán thành công
-      await db.run(
-        'UPDATE orders SET status = ?, payment_method = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        ['completed', 'card', orderId]
-      );
-
-      // Gửi email xác nhận
-      await sendPaymentConfirmation({
-        customerEmail: order.customer_email,
-        customerName: order.customer_name,
-        orderId: order.id,
-        totalPrice: order.total_price,
-        paymentMethod: 'card'
-      });
-
-      res.json({ 
-        success: true, 
-        message: 'Thanh toán thành công (Mock)',
-        orderId: order.id,
-        mock: true
-      });
-    } else {
-      res.status(400).json({ error: 'Thanh toán thất bại' });
-    }
+    // This endpoint should not be used - redirect to use Stripe
+    return res.status(400).json({ 
+      error: 'Vui lòng sử dụng Stripe payment flow thay vì endpoint này',
+      useMock: false,
+      shouldUseStripe: true
+    });
   } catch (error) {
     console.error('Process card payment error:', error);
     res.status(500).json({ error: 'Đã xảy ra lỗi khi xử lý thanh toán' });

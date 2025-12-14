@@ -1,5 +1,15 @@
 // Stripe Configuration
-// Lưu ý: Trong production, nên lưu trong .env file
+// IMPORTANT: Load dotenv first
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend root
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+
 import Stripe from 'stripe';
 
 // Only initialize Stripe if secret key is provided

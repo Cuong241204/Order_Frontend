@@ -105,13 +105,9 @@ function App() {
               path="/payment" 
               element={
                 <Layout>
-                  {stripePromise ? (
-                    <Elements stripe={stripePromise}>
-                      <Payment />
-                    </Elements>
-                  ) : (
+                  <Elements stripe={stripePromise}>
                     <Payment />
-                  )}
+                  </Elements>
                 </Layout>
                 } 
               />

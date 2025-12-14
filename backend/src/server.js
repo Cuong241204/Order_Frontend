@@ -1,6 +1,17 @@
+// IMPORTANT: Load .env FIRST before any other imports
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from backend root directory
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// Now import everything else AFTER dotenv is configured
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { initDatabase } from './config/database.js';
 import authRoutes from './routes/auth.js';
 import menuRoutes from './routes/menu.js';
@@ -9,13 +20,6 @@ import tableRoutes from './routes/tables.js';
 import userRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
 import paymentRoutes from './routes/payment.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;

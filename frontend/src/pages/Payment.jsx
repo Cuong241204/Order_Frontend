@@ -20,6 +20,13 @@ const Payment = () => {
     phoneNumber: ''
   });
 
+  // Debug: Log Stripe initialization
+  useEffect(() => {
+    console.log('💳 Stripe initialized:', !!stripe);
+    console.log('📝 Elements initialized:', !!elements);
+    console.log('🔑 Publishable Key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.substring(0, 20) + '...');
+  }, [stripe, elements]);
+
   useEffect(() => {
     // Lấy thông tin đơn hàng từ location state hoặc localStorage
     const orderFromState = location.state?.order;
@@ -42,12 +49,32 @@ const Payment = () => {
     const loadPaymentIntent = async () => {
       if (orderData && paymentMethod === 'card') {
         try {
+          console.log('🔄 Loading Stripe Payment Intent for order:', orderData.id);
+          setLoading(true);
           const intent = await paymentAPI.createStripePaymentIntent(orderData.id);
+          
+          console.log('✅ Payment Intent response:', intent);
+          
+          if (intent.useMock) {
+            // Stripe not configured
+            setError('Stripe chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
+            setLoading(false);
+            return;
+          }
+          
           if (intent.clientSecret) {
             setClientSecret(intent.clientSecret);
+            setError('');
+            console.log('✅ ClientSecret loaded successfully');
+          } else {
+            setError('Không thể tạo payment intent. Vui lòng thử lại.');
+            console.error('❌ No clientSecret in response:', intent);
           }
+          setLoading(false);
         } catch (error) {
-          console.log('Stripe not configured, will use mock payment');
+          console.error('❌ Error loading payment intent:', error);
+          setError('Stripe chưa được cấu hình hoặc có lỗi xảy ra. Vui lòng liên hệ quản trị viên.');
+          setLoading(false);
         }
       }
     };
@@ -98,8 +125,8 @@ const Payment = () => {
 
     // Validate based on payment method
     if (paymentMethod === 'card') {
-      if (!stripe || !elements) {
-        setError('Stripe chưa sẵn sàng. Vui lòng thử lại.');
+      if (!stripe || !elements || !clientSecret) {
+        setError('Stripe chưa được cấu hình. Không thể thanh toán.');
         setLoading(false);
         return;
       }
@@ -122,50 +149,39 @@ const Payment = () => {
       // Process payment via API
       try {
         if (paymentMethod === 'card') {
-          // Stripe payment
+          // Stripe payment - MUST have Stripe configured
           if (!stripe || !elements || !clientSecret) {
-            // Fallback to mock payment if Stripe not available
-            console.log('Stripe not available, using mock payment');
-            const result = await paymentAPI.processCardPayment(orderData.id, {
-              cardName: formData.cardName
-            });
+            throw new Error('Stripe chưa được cấu hình. Không thể thanh toán.');
+          }
+
+          // Use Stripe Elements to confirm payment
+          const cardElement = elements.getElement(CardElement);
+          
+          const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: formData.cardName,
+              },
+            },
+          });
+
+          if (stripeError) {
+            throw new Error(stripeError.message || 'Thanh toán thất bại');
+          }
+
+          if (paymentIntent.status === 'succeeded') {
+            // Confirm payment on backend
+            const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
             
-            if (result && result.error) {
-              throw new Error(result.error || 'Thanh toán thất bại');
+            if (confirmResult && confirmResult.error) {
+              throw new Error(confirmResult.error || 'Thanh toán thất bại');
             }
-            if (result && result.success === false) {
-              throw new Error(result.message || result.error || 'Thanh toán thất bại');
+            if (confirmResult && confirmResult.success === false) {
+              throw new Error(confirmResult.message || confirmResult.error || 'Thanh toán thất bại');
             }
           } else {
-            // Use Stripe Elements to confirm payment
-            const cardElement = elements.getElement(CardElement);
-            
-            const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-              payment_method: {
-                card: cardElement,
-                billing_details: {
-                  name: formData.cardName,
-                },
-              },
-            });
-
-            if (stripeError) {
-              throw new Error(stripeError.message || 'Thanh toán thất bại');
-            }
-
-            if (paymentIntent.status === 'succeeded') {
-              // Confirm payment on backend
-              const confirmResult = await paymentAPI.confirmStripePayment(orderData.id, paymentIntent.id);
-              
-              if (confirmResult && confirmResult.error) {
-                throw new Error(confirmResult.error || 'Thanh toán thất bại');
-              }
-              if (confirmResult && confirmResult.success === false) {
-                throw new Error(confirmResult.message || confirmResult.error || 'Thanh toán thất bại');
-              }
-            } else {
-              throw new Error('Thanh toán chưa hoàn tất');
-            }
+            throw new Error('Thanh toán chưa hoàn tất');
           }
         } else if (paymentMethod === 'cash') {
           // Cash payment - update order status to pending (will be confirmed later)
@@ -494,7 +510,47 @@ const Payment = () => {
                   <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>Thông Tin Thẻ</h4>
                   
                   {/* Stripe Card Element */}
-                  {stripe && elements ? (
+                  {loading && !clientSecret ? (
+                    <div style={{
+                      padding: '1rem',
+                      background: '#fff3cd',
+                      borderRadius: '8px',
+                      border: '1px solid #ffc107',
+                      marginBottom: '1rem',
+                      textAlign: 'center'
+                    }}>
+                      <p style={{ color: '#856404', fontSize: '0.9rem', margin: 0 }}>
+                        ⏳ Đang tải form thanh toán...
+                      </p>
+                    </div>
+                  ) : !stripe || !elements ? (
+                    <div style={{
+                      padding: '1rem',
+                      background: '#fee',
+                      borderRadius: '8px',
+                      border: '1px solid #fcc',
+                      marginBottom: '1rem'
+                    }}>
+                      <p style={{ color: '#c33', fontSize: '0.9rem', margin: 0 }}>
+                        ⚠️ Stripe chưa được khởi tạo. Vui lòng refresh trang (Cmd+Shift+R).
+                      </p>
+                    </div>
+                  ) : !clientSecret ? (
+                    <div style={{
+                      padding: '1rem',
+                      background: '#fee',
+                      borderRadius: '8px',
+                      border: '1px solid #fcc',
+                      marginBottom: '1rem'
+                    }}>
+                      <p style={{ color: '#c33', fontSize: '0.9rem', margin: 0 }}>
+                        ⚠️ Không thể tạo payment intent. Backend có thể chưa cấu hình Stripe.
+                      </p>
+                      <p style={{ color: '#c33', fontSize: '0.85rem', margin: '0.5rem 0 0 0' }}>
+                        Vui lòng kiểm tra backend logs hoặc liên hệ quản trị viên.
+                      </p>
+                    </div>
+                  ) : (
                     <div style={{ marginBottom: '1rem' }}>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
                         Thông tin thẻ *
@@ -507,17 +563,8 @@ const Payment = () => {
                       }}>
                         <CardElement options={cardElementOptions} />
                       </div>
-                    </div>
-                  ) : (
-                    <div style={{
-                      padding: '1rem',
-                      background: '#fff3cd',
-                      borderRadius: '8px',
-                      border: '1px solid #ffc107',
-                      marginBottom: '1rem'
-                    }}>
-                      <p style={{ color: '#856404', fontSize: '0.9rem', margin: 0 }}>
-                        ℹ️ Stripe chưa được cấu hình. Hệ thống sẽ sử dụng mock payment (luôn thành công) cho mục đích testing.
+                      <p style={{ color: '#718096', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                        💳 Test card: 4242 4242 4242 4242
                       </p>
                     </div>
                   )}
