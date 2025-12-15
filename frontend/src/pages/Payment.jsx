@@ -791,33 +791,6 @@ const Payment = () => {
                 </div>
               )}
 
-              {paymentMethod === 'card' && (
-                <div style={{
-                  padding: '1.5rem',
-                  background: '#f7fafc',
-                  borderRadius: '12px',
-                  marginBottom: '2rem',
-                  border: '1px solid #e2e8f0'
-                }}>
-                  <h4 style={{ color: '#2d3748', marginBottom: '1rem' }}>
-                    Thanh Toán Bằng Stripe
-                  </h4>
-                  <p style={{ color: '#718096', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                    Thanh toán an toàn và bảo mật với Stripe. Hỗ trợ tất cả các loại thẻ tín dụng và ghi nợ.
-                  </p>
-                  <div style={{
-                    padding: '1rem',
-                    background: '#e6fffa',
-                    borderRadius: '8px',
-                    border: '1px solid #9ae6b4'
-                  }}>
-                    <p style={{ color: '#2d3748', fontSize: '0.9rem', margin: 0 }}>
-                      <strong>Hỗ trợ:</strong> Visa, Mastercard, JCB, American Express
-                    </p>
-                  </div>
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={loading}
