@@ -4,8 +4,9 @@ services:
     name: foodorder-backend
     env: node
     plan: free
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -51,3 +52,4 @@ services:
         sync: false  # Sẽ cập nhật sau khi deploy backend
       - key: VITE_STRIPE_PUBLISHABLE_KEY
         sync: false
+
