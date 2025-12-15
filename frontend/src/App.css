@@ -901,6 +901,10 @@
   display: block;
   box-sizing: border-box;
   overflow: visible;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .table-info-banner p {
@@ -908,6 +912,7 @@
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.3px;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -918,9 +923,12 @@
     z-index: 10;
     width: 100%;
     box-sizing: border-box;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     clear: both;
     overflow: visible;
+    min-height: 50px;
   }
   
   .table-info-banner p {
@@ -928,5 +936,18 @@
     line-height: 1.5;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-info-banner {
+    padding: 0.875rem 1rem;
+    min-height: 45px;
+  }
+  
+  .table-info-banner p {
+    font-size: 0.9rem;
+    line-height: 1.4;
   }
 }
