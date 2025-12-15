@@ -102,8 +102,8 @@ const Checkout = () => {
     setLoading(true);
     setMessage('');
 
-    // Validate form
-    if (!formData.phone || !validatePhone(formData.phone)) {
+    // Validate phone number only if provided (optional field)
+    if (formData.phone && formData.phone.trim() && !validatePhone(formData.phone)) {
       setMessage('Số điện thoại không hợp lệ (10-11 chữ số)');
       setLoading(false);
       return;
@@ -186,7 +186,7 @@ const Checkout = () => {
         tableId: currentTable?.id || null,
         customerName: user?.name || 'Khách hàng',
         customerEmail: user?.email || null,
-        customerPhone: formData.phone.trim(),
+        customerPhone: formData.phone && formData.phone.trim() ? formData.phone.trim() : null,
         tableNumber: formData.tableNumber.trim(),
         numberOfGuests: parseInt(formData.numberOfGuests),
         items: cartItems,
@@ -456,14 +456,13 @@ const Checkout = () => {
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
                     <Phone size={16} />
-                    Số điện thoại *
+                    Số điện thoại
                   </label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    required
                     placeholder="0901234567"
                     style={{
                       width: '100%',
@@ -473,6 +472,15 @@ const Checkout = () => {
                       fontSize: '1rem'
                     }}
                   />
+                  <p style={{ 
+                    color: '#718096', 
+                    fontSize: '0.85rem', 
+                    marginTop: '0.5rem',
+                    marginBottom: 0,
+                    fontStyle: 'italic'
+                  }}>
+                    💡 Nếu muốn tích điểm thưởng để đổi mã giảm giá cho lần sau, vui lòng điền số điện thoại
+                  </p>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
