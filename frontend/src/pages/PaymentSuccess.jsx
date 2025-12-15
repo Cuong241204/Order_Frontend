@@ -337,7 +337,13 @@ const PaymentSuccess = () => {
             
             {/* Nút Xem Đơn Hàng - Phụ */}
             <button
-              onClick={() => navigate('/orders')}
+              onClick={() => {
+                if (orderId) {
+                  navigate(`/orders?orderId=${orderId}`);
+                } else {
+                  navigate('/orders');
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
