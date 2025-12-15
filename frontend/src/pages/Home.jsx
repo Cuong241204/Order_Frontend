@@ -159,7 +159,7 @@ const Home = () => {
   };
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       {/* Table Info from QR Code */}
       {currentTable && (
         <div className="table-info-banner">

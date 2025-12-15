@@ -44,7 +44,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
@@ -891,7 +891,11 @@
   padding: 1.25rem 2rem;
   text-align: center;
   margin-bottom: 0;
+  margin-top: 0;
   box-shadow: 0 4px 20px rgba(72, 187, 120, 0.3);
+  position: relative;
+  z-index: 1;
+  width: 100%;
 }
 
 .table-info-banner p {
@@ -903,10 +907,16 @@
 
 @media (max-width: 768px) {
   .table-info-banner {
-    padding: 1rem 1.5rem;
+    padding: 0.875rem 1rem;
+    margin-top: 0;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .table-info-banner p {
-    font-size: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
   }
 }
