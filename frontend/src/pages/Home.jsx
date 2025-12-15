@@ -162,14 +162,8 @@ const Home = () => {
     <div>
       {/* Table Info from QR Code */}
       {currentTable && (
-        <div style={{
-          background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-          color: 'white',
-          padding: '1rem 2rem',
-          textAlign: 'center',
-          marginBottom: '1rem'
-        }}>
-          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>
+        <div className="table-info-banner">
+          <p>
             🎯 Bạn đang ở: <strong>{currentTable.number}</strong>
             {currentTable.capacity && ` (Sức chứa: ${currentTable.capacity} người)`}
           </p>
