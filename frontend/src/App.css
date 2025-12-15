@@ -26,6 +26,8 @@
   padding: 0;
   position: relative;
   z-index: 1;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Container */
@@ -894,8 +896,10 @@
   margin-top: 0;
   box-shadow: 0 4px 20px rgba(72, 187, 120, 0.3);
   position: relative;
-  z-index: 1;
+  z-index: 999;
   width: 100%;
+  display: block;
+  box-sizing: border-box;
 }
 
 .table-info-banner p {
@@ -907,16 +911,19 @@
 
 @media (max-width: 768px) {
   .table-info-banner {
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.5rem;
     margin-top: 0;
     position: relative;
-    z-index: 1;
+    z-index: 999;
     width: 100%;
     box-sizing: border-box;
+    display: block;
+    clear: both;
   }
   
   .table-info-banner p {
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    word-wrap: break-word;
   }
 }
