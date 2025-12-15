@@ -896,10 +896,11 @@
   margin-top: 0;
   box-shadow: 0 4px 20px rgba(72, 187, 120, 0.3);
   position: relative;
-  z-index: 999;
+  z-index: 10;
   width: 100%;
   display: block;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .table-info-banner p {
@@ -914,16 +915,18 @@
     padding: 1rem 1.5rem;
     margin-top: 0;
     position: relative;
-    z-index: 999;
+    z-index: 10;
     width: 100%;
     box-sizing: border-box;
     display: block;
     clear: both;
+    overflow: visible;
   }
   
   .table-info-banner p {
     font-size: 0.95rem;
     line-height: 1.5;
     word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 }

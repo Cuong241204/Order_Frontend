@@ -162,7 +162,7 @@ const Home = () => {
     <div style={{ width: '100%', position: 'relative' }}>
       {/* Table Info from QR Code */}
       {currentTable && (
-        <div className="table-info-banner" style={{ position: 'relative', zIndex: 999 }}>
+        <div className="table-info-banner">
           <p>
             🎯 Bạn đang ở: <strong>{currentTable.number}</strong>
             {currentTable.capacity && ` (Sức chứa: ${currentTable.capacity} người)`}
