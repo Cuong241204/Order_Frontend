@@ -139,7 +139,7 @@
   top: 100%;
   left: 0;
   right: 0;
-  z-index: 99;
+  z-index: 999;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   max-height: 0;
   overflow: hidden;
@@ -179,7 +179,7 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.3);
-  z-index: 98;
+  z-index: 998;
   backdrop-filter: blur(2px);
 }
 
