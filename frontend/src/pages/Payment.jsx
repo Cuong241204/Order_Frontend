@@ -836,6 +836,75 @@ const Payment = () => {
                     />
                   </div>
 
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      placeholder="0901234567"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '1rem'
+                      }}
+                    />
+                    <p style={{ 
+                      color: '#718096', 
+                      fontSize: '0.85rem', 
+                      marginTop: '0.5rem',
+                      marginBottom: 0,
+                      fontStyle: 'italic'
+                    }}>
+                      💡 Nếu muốn tích điểm thưởng để đổi mã giảm giá cho lần sau, vui lòng điền số điện thoại
+                    </p>
+                  </div>
+
+                </div>
+              )}
+
+              {/* Phone number field for cash payment */}
+              {paymentMethod === 'cash' && (
+                <div style={{
+                  padding: '1.5rem',
+                  background: '#f7fafc',
+                  borderRadius: '12px',
+                  marginBottom: '2rem',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#4a5568' }}>
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      placeholder="0901234567"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '1rem'
+                      }}
+                    />
+                    <p style={{ 
+                      color: '#718096', 
+                      fontSize: '0.85rem', 
+                      marginTop: '0.5rem',
+                      marginBottom: 0,
+                      fontStyle: 'italic'
+                    }}>
+                      💡 Nếu muốn tích điểm thưởng để đổi mã giảm giá cho lần sau, vui lòng điền số điện thoại
+                    </p>
+                  </div>
                 </div>
               )}
 
