@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, LogOut, Settings, Shield, Table, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Settings, Table, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTable } from '../contexts/TableContext';
 
@@ -136,15 +136,6 @@ const Header = () => {
               Lịch Sử Đơn Hàng
             </Link>
           </>
-        )}
-        {isAdmin && (
-          <Link 
-            to="/admin/dashboard" 
-            className={isActive('/admin/dashboard') ? 'active' : ''} 
-            onClick={() => setShowMobileMenu(false)}
-          >
-            <Shield size={18} /> Quản Trị
-          </Link>
         )}
       </nav>
       
