@@ -334,42 +334,6 @@ const PaymentSuccess = () => {
                 In Hóa Đơn
               </button>
             )}
-            
-            {/* Nút Xem Đơn Hàng - Phụ */}
-            <button
-              onClick={() => {
-                if (orderId) {
-                  navigate(`/orders?orderId=${orderId}`);
-                } else {
-                  navigate('/orders');
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 2rem',
-                background: 'white',
-                color: '#718096',
-                border: '2px solid #e2e8f0',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f7fafc';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'white';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <Receipt size={20} />
-              Xem Đơn Hàng
-            </button>
           </div>
 
           {/* Note */}
