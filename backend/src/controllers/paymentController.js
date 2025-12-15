@@ -170,9 +170,16 @@ export const createStripePaymentIntent = async (req, res) => {
       });
     }
 
+    // Kiểm tra xem đã có Payment Intent nào cho order này chưa (tránh duplicate)
+    // Lưu ý: Stripe không có cách trực tiếp để query payment intents theo metadata,
+    // nhưng chúng ta có thể kiểm tra trong database nếu có lưu payment_intent_id
+    // Tạm thời, chúng ta sẽ luôn tạo mới vì mỗi order chỉ nên có 1 payment intent
+    // Nếu frontend gọi nhiều lần, sẽ tạo nhiều payment intent (đây là vấn đề cần fix ở frontend)
+    
     console.log('✅ Creating Stripe Payment Intent for order:', order.id);
     console.log('   Amount:', order.total_price, 'VND');
     console.log('   Customer:', order.customer_name || 'Guest');
+    console.log('   ⚠️ Lưu ý: Nếu thấy nhiều Payment Intent cho cùng 1 order, có thể frontend đang gọi API nhiều lần');
     
     // Tạo Payment Intent với Stripe
     let paymentIntent;

@@ -52,68 +52,116 @@ const Payment = () => {
 
   // Load Stripe Payment Intent when order data is available
   useEffect(() => {
+    // Tránh tạo duplicate payment intent - chỉ tạo một lần
+    if (clientSecret) {
+      console.log('✅ Payment Intent đã tồn tại, không tạo mới');
+      return;
+    }
+
+    let isMounted = true;
+    let timeoutId = null;
+
     const loadPaymentIntent = async () => {
-      if (orderData && paymentMethod === 'card') {
-        const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-        
-        console.log('🔍 Checking Stripe configuration...');
-        console.log('   Publishable Key:', publishableKey ? '✅ Có' : '❌ Không có');
-        console.log('   Stripe instance:', stripe ? '✅ Có' : '⏳ Đang load...');
-        console.log('   Elements:', elements ? '✅ Có' : '⏳ Đang load...');
-        
-        if (!publishableKey) {
-          console.error('❌ VITE_STRIPE_PUBLISHABLE_KEY không tồn tại!');
-          console.error('   Vui lòng thêm key vào frontend/.env và restart frontend');
+      // Kiểm tra lại clientSecret sau khi async
+      if (clientSecret) {
+        console.log('✅ Payment Intent đã được tạo, bỏ qua');
+        return;
+      }
+
+      if (!orderData || paymentMethod !== 'card') {
+        return;
+      }
+
+      const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      
+      console.log('🔍 Checking Stripe configuration...');
+      console.log('   Publishable Key:', publishableKey ? '✅ Có' : '❌ Không có');
+      console.log('   Stripe instance:', stripe ? '✅ Có' : '⏳ Đang load...');
+      console.log('   Elements:', elements ? '✅ Có' : '⏳ Đang load...');
+      
+      if (!publishableKey) {
+        console.error('❌ VITE_STRIPE_PUBLISHABLE_KEY không tồn tại!');
+        console.error('   Vui lòng thêm key vào frontend/.env và restart frontend');
+        if (isMounted) {
           setError('Stripe chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
+        }
+        return;
+      }
+      
+      // Đợi Stripe và Elements load xong
+      if (!stripe || !elements) {
+        console.log('⏳ Đợi Stripe Elements load...');
+        // Retry sau 500ms nếu Stripe chưa load
+        if (isMounted && !timeoutId) {
+          timeoutId = setTimeout(() => {
+            if (isMounted && !clientSecret) {
+              loadPaymentIntent();
+            }
+          }, 500);
+        }
+        return;
+      }
+      
+      // Kiểm tra lại clientSecret trước khi tạo
+      if (clientSecret) {
+        console.log('✅ Payment Intent đã được tạo trước đó, bỏ qua');
+        return;
+      }
+
+      try {
+        console.log('🔄 Creating Stripe Payment Intent...');
+        console.log('   Order ID:', orderData.id);
+        console.log('   Amount:', orderData.total, 'VND');
+        
+        const intent = await paymentAPI.createStripePaymentIntent(orderData.id);
+        
+        // Kiểm tra component còn mounted và chưa có clientSecret
+        if (!isMounted || clientSecret) {
+          console.log('⚠️ Component unmounted hoặc Payment Intent đã được tạo, bỏ qua kết quả');
           return;
         }
         
-        // Đợi Stripe và Elements load xong
-        if (!stripe || !elements) {
-          console.log('⏳ Đợi Stripe Elements load...');
-          return;
-        }
-        
-        try {
-          console.log('🔄 Creating Stripe Payment Intent...');
-          console.log('   Order ID:', orderData.id);
-          console.log('   Amount:', orderData.total, 'VND');
-          
-          const intent = await paymentAPI.createStripePaymentIntent(orderData.id);
-          
-          if (intent.useMock) {
-            console.error('❌ Backend trả về mock payment!');
-            console.error('   Backend chưa có STRIPE_SECRET_KEY');
+        if (intent.useMock) {
+          console.error('❌ Backend trả về mock payment!');
+          console.error('   Backend chưa có STRIPE_SECRET_KEY');
+          if (isMounted) {
             setError('Stripe chưa được cấu hình trên server. Giao dịch sẽ không xuất hiện trên Dashboard.');
-            return;
           }
-          
-          if (intent.clientSecret && intent.paymentIntentId) {
-            console.log('✅✅✅ Stripe Payment Intent created! ✅✅✅');
-            console.log('   Payment Intent ID:', intent.paymentIntentId);
-            console.log('   ✅ Payment Intent đã được tạo trên Stripe');
-            console.log('   🔗 Xem trên Dashboard: https://dashboard.stripe.com/test/payments');
+          return;
+        }
+        
+        if (intent.clientSecret && intent.paymentIntentId) {
+          console.log('✅✅✅ Stripe Payment Intent created! ✅✅✅');
+          console.log('   Payment Intent ID:', intent.paymentIntentId);
+          console.log('   ✅ Payment Intent đã được tạo trên Stripe');
+          console.log('   🔗 Xem trên Dashboard: https://dashboard.stripe.com/test/payments');
+          if (isMounted) {
             setClientSecret(intent.clientSecret);
-          } else {
-            console.error('❌ Không nhận được clientSecret từ backend');
+          }
+        } else {
+          console.error('❌ Không nhận được clientSecret từ backend');
+          if (isMounted) {
             setError('Không thể tạo payment intent. Vui lòng thử lại.');
           }
-        } catch (error) {
-          console.error('❌ Failed to create Stripe Payment Intent:', error);
+        }
+      } catch (error) {
+        console.error('❌ Failed to create Stripe Payment Intent:', error);
+        if (isMounted && !clientSecret) {
           setError('Không thể tạo payment intent: ' + (error.message || 'Unknown error'));
         }
       }
     };
     
-    // Retry nếu Stripe chưa load xong
-    const timer = setTimeout(() => {
-      loadPaymentIntent();
-    }, 500);
-    
+    // Gọi ngay lập tức
     loadPaymentIntent();
     
-    return () => clearTimeout(timer);
-  }, [orderData, paymentMethod, stripe, elements]);
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [orderData, paymentMethod, stripe, elements, clientSecret]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
