@@ -47,6 +47,12 @@ const Orders = () => {
   };
 
   useEffect(() => {
+    // Kiểm tra nếu có orderId trong query params, set showOnlyLatest ngay
+    const orderId = searchParams.get('orderId');
+    if (orderId) {
+      setShowOnlyLatest(true);
+      setShowSuccessMessage(true);
+    }
     loadOrders();
   }, [user, searchParams]);
 
@@ -71,8 +77,9 @@ const Orders = () => {
     try {
       const orderId = searchParams.get('orderId');
       
-      // Nếu có orderId từ query params (sau khi thanh toán), chỉ load đơn hàng đó
+      // Nếu có orderId từ query params (sau khi thanh toán), CHỈ load đơn hàng đó và return
       if (orderId) {
+        console.log('🔍 Loading specific order by ID:', orderId);
         try {
           const order = await ordersAPI.getById(orderId);
           let items = [];
@@ -103,13 +110,21 @@ const Orders = () => {
             number_of_guests: order.number_of_guests,
             payment_method: order.payment_method
           };
+          console.log('✅ Setting single order:', transformedOrder.id);
           setOrders([transformedOrder]);
           setShowOnlyLatest(true);
+          setLoading(false);
+          return; // QUAN TRỌNG: Return ngay để không load tất cả đơn hàng
         } catch (error) {
           console.error('Error loading order by ID:', error);
           setOrders([]);
+          setLoading(false);
+          return; // Return ngay cả khi có lỗi
         }
-      } else if (user && user.id) {
+      }
+      
+      // Chỉ chạy các logic dưới nếu KHÔNG có orderId
+      if (user && user.id) {
         // Load orders for logged in user
         const userOrders = await ordersAPI.getUserOrders(user.id);
         // Transform API response
@@ -289,7 +304,8 @@ const Orders = () => {
           </div>
         ) : (
           <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            {(showOnlyLatest ? orders.slice(0, 1) : orders).map((order) => (
+            {/* Nếu có orderId trong query params, chỉ hiển thị đơn hàng đó, không slice */}
+            {orders.map((order) => (
               <div
                 key={order.id}
                 style={{
